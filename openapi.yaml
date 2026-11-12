@@ -1,0 +1,3797 @@
+openapi: 3.1.1
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
+info:
+  title: 대기열 기반 수강신청 시스템 API
+  version: 0.1.0
+  summary: 웹 프런트엔드용 HTTP 계약 설계 초안(구현 준비용, 미배포)
+  description: |
+    대기열 기반 수강신청 시스템의 웹 프런트엔드가 호출하는 HTTP 계약 **설계 초안**이다. 스키마·상태 코드·헤더·인증·예시를
+    구현에 바로 쓸 수 있는 수준으로 정의하지만 서버·웹 애플리케이션 코드, 실제 배포, 성능 검증 결과를 뜻하지 않는다.
+
+    - 정책 합의일: 2026-11-10. 회의 요구와 업무 정의의 출처는 [단위업무기술서](단위업무기술서.md),
+      [업무기능도](업무기능도.md), [업무흐름도](업무흐름도.md), [ERD](ERD.md)이다.
+    - 출처는 행 번호가 아니라 업무 ID와 문서 앵커로 표기한다. 각 연산의 `x-business-functions`는 단위업무 ID와
+      단위업무기술서 앵커(`단위업무기술서.md#aut-01-01` 형식)를 가리킨다.
+    - 수치(동시 처리 수 N 기본 100·범위 1~1,000, 폴링 2초, 페이지 20건, Access 15분, 세션 7일, 로그인 자격 증명
+      컨텍스트 5분, 익명 소유 증명 10분)는 합의된 초안 정책이며 측정값이 아니다.
+
+    ## 1. 범위와 제외 사항
+
+    - 클라이언트가 호출하는 **20개 연산(17개 경로)**만 정의한다. 대기열 추출·처리·복구(QUE-02-01~03)는 서버 내부
+      처리이며 HTTP 연산이 없다.
+    - 제외: 회원가입·비밀번호 변경/찾기, 중복 로그인 제어, 전 기기 로그아웃, 장바구니, 시간표·학점·신청 기간,
+      다학기·분반, 과목 물리 삭제(`DELETE`)·과목코드 재사용, 폐강 되돌리기·자동/강제 폐강, 관리자 수강 취소,
+      학생 검색·수강생 명단, 티켓 목록·취소, 대기 포기, 관리자 우선 대기열, 좌석 대기명단, 알림, 강의계획서 관리,
+      설정 이력, 부분 수정(`PATCH`), 별도 현재 사용자·입장 상태 조회, 요청 수 제한(429).
+    - 과목 삭제는 **폐강**으로 대체되었다. 폐강한 과목과 그 수강신청 행은 보존된다. 결과 코드 E12(삭제 불가)는
+      폐지되었으며 어떤 응답에도 나오지 않는다.
+
+    ## 2. 업무 기능과 HTTP 연산
+
+    | 업무 ID | 업무 | HTTP 연산 |
+    |---|---|---|
+    | [AUT-01-01](단위업무기술서.md#aut-01-01) | 로그인 | `POST /auth/login` |
+    | [AUT-01-02](단위업무기술서.md#aut-01-02) | 로그아웃 | `POST /auth/logout` |
+    | [AUT-01-03](단위업무기술서.md#aut-01-03) | 로그인 토큰 수령 | `POST /auth/login-tickets/{ticketId}/tokens` |
+    | [AUT-01-04](단위업무기술서.md#aut-01-04) | 토큰 갱신 | `POST /auth/refresh` |
+    | [AUT-02-01](단위업무기술서.md#aut-02-01) | 수강신청 화면 진입 | `POST /admission` |
+    | [AUT-03-01](단위업무기술서.md#aut-03-01) | 역할 기반 접근 제어 | 모든 연산의 공통 검사(별도 연산 없음) |
+    | [QUE-01-01](단위업무기술서.md#que-01-01) | 대기 티켓 발급 | 대기열 4유형 접수(`login`, `requestAdmission`, `requestEnrollment`, `requestCancellation`)의 202 |
+    | [QUE-01-02](단위업무기술서.md#que-01-02) | 대기 순번·결과 조회 | `GET /tickets/{ticketId}` |
+    | [QUE-02-01](단위업무기술서.md#que-02-01) | 선착순 추출·처리 배정 | 서버 내부(HTTP 연산 없음) |
+    | [QUE-02-02](단위업무기술서.md#que-02-02) | 처리 완료·슬롯 반납 | 서버 내부(HTTP 연산 없음) |
+    | [QUE-02-03](단위업무기술서.md#que-02-03) | 지연 요청 재투입 | 서버 내부(HTTP 연산 없음) |
+    | [ENR-01-01](단위업무기술서.md#enr-01-01) | 과목 검색 | `GET /courses` |
+    | [ENR-01-02](단위업무기술서.md#enr-01-02) | 과목 상세·여석 조회 | `GET /courses/{courseCode}` |
+    | [ENR-02-01](단위업무기술서.md#enr-02-01) | 수강 신청 | `POST /me/enrollments` |
+    | [ENR-02-02](단위업무기술서.md#enr-02-02) | 수강 취소 | `DELETE /me/enrollments/{courseCode}` |
+    | [ENR-02-03](단위업무기술서.md#enr-02-03) | 내 신청 내역 조회(현재 신청 과목만) | `GET /me/enrollments` |
+    | [CMG-01-01](단위업무기술서.md#cmg-01-01) | 담당 과목 조회 | `GET /professor/courses` |
+    | [CMG-02-01](단위업무기술서.md#cmg-02-01) | 과목 등록 | `POST /professor/courses` |
+    | [CMG-02-02](단위업무기술서.md#cmg-02-02) | 과목 정보 수정 | `PUT /professor/courses/{courseCode}` |
+    | [CMG-02-03](단위업무기술서.md#cmg-02-03) | 담당 과목 폐강 | `POST /professor/courses/{courseCode}/closure` |
+    | [ADM-01-01](단위업무기술서.md#adm-01-01) | 관리자 수강신청 | `POST /admin/enrollments` |
+    | [ADM-02-01](단위업무기술서.md#adm-02-01) | 서비스 설정 관리 | `GET /admin/settings`, `PUT /admin/settings` |
+    | [ADM-03-01](단위업무기술서.md#adm-03-01) | 폐강 대상 조회 | `GET /admin/closure-candidates` |
+    | [ADM-03-02](단위업무기술서.md#adm-03-02) | 폐강 처리 | `POST /admin/course-closures` |
+
+    ## 3. 공통 규약
+
+    - 기준 경로는 `/api/v1`이다. 요청·응답 본문은 UTF-8 JSON(`application/json`), 오류는 `application/problem+json`이다.
+    - 속성·연산 이름은 영어 camelCase, 열거값은 영어 대문자다.
+    - 시각은 UTC RFC 3339 `date-time`(`Z` 표기)이다. null 허용은 OAS 3.1 타입 합집합(`type: [string, 'null']` 또는
+      `oneOf`의 `type: 'null'`)으로 표기한다.
+    - 사용자ID는 비어 있지 않은 문자열이다. 티켓 ID는 JavaScript 정수 정밀도 문제를 피하려고 양의 10진수 문자열로
+      주고받는다. 과목코드는 `^[A-Za-z0-9]{1,10}$`이며 대소문자를 구분하고, 바꿀 수 없고, 폐강 과목을 포함한 전체
+      과목에서 유일하며, 재사용하지 않는다. 서버 내부의 불변 과목 인스턴스ID는 잠금·관계 식별에 계속 쓰지만 API로
+      노출하거나 입력받지 않는다. 수강신청 행의 별도 ID도 없다.
+    - 식별자와 비밀번호는 trim·대소문자 변환·유니코드 정규화 없이 받은 그대로 다룬다.
+    - 정의되지 않은 본문 필드·쿼리 파라미터, 서버 소유 필드(예: 수정 본문의 `courseCode`), 같은 쿼리 파라미터의
+      반복, 본문을 받지 않는 요청의 본문, JSON이 아닌 본문은 모두 400 E09다. 서버가 대신 채우거나 무시하지 않는다.
+    - 페이지 목록은 과목 검색과 폐강 대상 조회 두 가지뿐이다. `page`(1 이상, 기본 1), 크기 20 고정, 과목코드
+      ASCII(바이트) 오름차순이며 `pageSize`·정렬 파라미터는 없다. 마지막 페이지 뒤를 요청하면 빈 `items`와 그 읽기
+      시점의 정확한 메타데이터를 반환한다. 결과가 0건이면 `totalPages`는 0이다. 그 밖의 목록은 전체 항목을
+      `{items}`로 반환한다.
+    - 모든 응답(오류 포함)에 `Cache-Control: no-store`를 둔다. 모든 응답이 사용자별 데이터이거나 자격 증명을 다룬다.
+    - 응답에는 비밀번호(원문·해시), 토큰 해시, 소유 증명 값, 처리기·리스·소유권 세대·슬롯 식별 정보, 다른 학생의
+      기록을 넣지 않는다.
+
+    ## 4. 인증 모델
+
+    ### 4.1 배포 형태(예시)
+
+    웹 `https://app.example.com`과 API `https://api.example.com`은 **같은 사이트(same-site)이면서 다른
+    출처(cross-origin)**인 HTTPS 서브도메인이다. 예약된 예시 도메인이며 실제 배포 도메인은 아직 정하지 않았다.
+
+    ### 4.2 자격 증명
+
+    | 자격 증명 | 전달 | 수명 | 서버 보관 | 클라이언트 보관 |
+    |---|---|---|---|---|
+    | 계정 비밀번호 | 로그인 요청 본문(원문) | 접수 후 최대 5분(단기 메모리 컨텍스트) | 영구 보관은 ENT-01의 **비밀번호 해시**뿐이다. 입력 원문은 DB·티켓·이력·로그에 남기지 않고 검증 후 폐기한다. | 보관 금지 |
+    | 익명 소유 증명 | `__Host-crs_login` 쿠키 | 600초(로그인 접수 시각 기준) | 검증용 다이제스트와 익명 컨텍스트 결합(ENT-04) | HttpOnly 쿠키 |
+    | Access JWT | `Authorization: Bearer` | 최대 15분, 세션 만료를 넘지 않음 | 저장하지 않음(서명 검증 후 세션 조회) | JS 메모리만 |
+    | Refresh | `__Host-crs_refresh` 쿠키(불투명 난수) | 세션 절대 만료(로그인 후 7일, 비연장)까지 | 토큰 해시만(ENT-07) | HttpOnly 쿠키 |
+
+    ### 4.3 쿠키
+
+    두 쿠키는 모두 `Secure; HttpOnly; SameSite=Lax; Path=/`이며 `Domain` 속성이 없다(API 호스트 전용).
+    `__Host-` 접두사 때문에 형제 서브도메인이 같은 이름의 쿠키를 심을 수 없다. Refresh 쿠키의 `Max-Age`는 세션
+    `expiresAt`까지 남은 초를 넘지 않는다.
+
+    `Path=/` 때문에 두 쿠키는 모든 API 요청에 함께 전송되지만, 서버는 쿠키를 다음 연산에서만 자격 증명으로 쓰고 그 밖의
+    연산에서는 무시한다. Bearer 연산을 쿠키로 인증하지 않는다.
+    - `__Host-crs_refresh`: `refreshTokens`, `logout`
+    - `__Host-crs_login`: `login`(미완료 LOGIN 중복 판정), `exchangeLoginTokens`, `getTicket`(LOGIN 티켓)
+
+    ### 4.4 CORS와 CSRF
+
+    - 쿠키를 쓰는 요청은 `fetch(url, { credentials: 'include' })`로 보낸다.
+    - CORS 응답: `Access-Control-Allow-Origin`은 설정된 프런트엔드 출처와 정확히 같은 값(와일드카드 금지),
+      `Access-Control-Allow-Credentials: true`, 허용 메서드 `GET, POST, PUT, DELETE`, 허용 헤더
+      `Authorization, Content-Type, X-CSRF-Protection`, 노출 헤더 `Location, Retry-After`(`Set-Cookie`는 노출하지 않음),
+      `Vary: Origin`. 사전 요청(`OPTIONS`)은 계약 연산이 아니다.
+    - 쿠키를 다루는 변경 요청 4개(`login`, `exchangeLoginTokens`, `refreshTokens`, `logout`)는 `Origin`이 허용 출처와
+      정확히 같고 `X-CSRF-Protection: 1` 헤더가 있어야 한다. 하나라도 어긋나면 어떤 상태도 바꾸지 않고 403 E02
+      `CSRF_CHECK_FAILED`를 반환한다. 이 헤더는 인증 비밀이 아니라 단순 요청을 사전 요청으로 바꾸는 장치다. 같은
+      사이트의 다른 서브도메인에서 온 요청에는 SameSite가 쿠키를 막지 않으므로 이 검사가 필수다. 본문이 있는
+      요청은 `application/json`만 받는다.
+    - Bearer만 쓰는 요청은 브라우저가 자격 증명을 자동 첨부하지 않으므로 CSRF 헤더를 요구하지 않는다. CSRF 토큰
+      발급용 별도 연산은 없다.
+
+    ### 4.5 Access JWT 검증
+
+    - 필수 클레임: `sub`(사용자ID), `sid`(세션ID), `role`, `iss`, `aud`, `iat`, `exp`. `sid`는 비밀이 아니다.
+    - 서버가 고정한 허용 서명 알고리즘과 키 출처로 서명을 검증하고, `iss`·`aud`·시간을 확인한 뒤, 서버의
+      세션(ACTIVE이고 현재 시각 < `expiresAt`)·사용자·역할을 권위로 확인한다. 토큰 안 `role`보다 서버 값이 우선한다.
+    - 클라이언트가 보낸 `sid`나 세대 값만으로 세션을 폐기하거나 재사용을 추정하지 않는다. 서명 알고리즘과
+      프레임워크 선택은 공개 계약에 포함하지 않는다.
+
+    ### 4.6 세션과 Refresh 수명주기(ENT-06 접속 세션, ENT-07 Refresh 토큰 기록)
+
+    1. LOGIN 처리기가 비밀번호 해시 검증에 성공하면 세션(ACTIVE, `loginAt`=검증 성공 시각,
+       `expiresAt`=`loginAt`+7일, 미입장)과 LOGIN 티켓 결과 OK를 한 트랜잭션으로 커밋한다. 이 시점의 Refresh 기록은 0건이다.
+    2. 토큰 교환은 세션의 최초 토큰 발급 시각을 기록하고 첫 Refresh 기록을 만든다. 세션당 한 번뿐이다.
+    3. 갱신할 때마다 기존 Refresh를 소비 처리하고 새 Refresh를 만든다(회전). 세션당 미소비 Refresh는 최대 1건이다.
+       소비된 해시는 적어도 세션 절대 만료까지 보존한다.
+    4. 재사용 판정은 **발급되었다가 이미 소비된 Refresh의 해시 일치**로만 한다. 그 Refresh의 세션만 폐기하고 다른
+       세션은 건드리지 않는다. 알 수 없는 해시는 어떤 세션도 바꾸지 않는다. 유예 시간은 없다.
+    5. 로그아웃과 재사용 탐지는 세션을 지우지 않고 REVOKED(폐기 시각, 사유 LOGOUT 또는 REFRESH_REUSE)로 남긴다.
+       로그아웃은 제시된 Refresh 해시가 발급 기록과 일치하면 **소비 여부와 무관하게** 그 세션을 폐기한다. 일치하는 기록은
+       그 세션의 소유 증명이기 때문이다. 해시 조회·회전·재사용 폐기·로그아웃은 같은 세션 단위로 직렬화하므로, 로그아웃이
+       커밋되면 그보다 먼저 회전된 새 Refresh와 그 세션의 Access도 함께 무효가 된다. 만료는 `expiresAt`으로 판정하며
+       상태를 바꾸는 배치 작업에 의존하지 않는다. 세션 상태(ACTIVE|REVOKED)는 서버 내부 값이며 응답 필드가 아니다.
+    6. 같은 세션의 갱신은 입장 상태(`admittedAt`)를 유지한다. 새 로그인은 새 세션이므로 다시 입장해야 한다.
+
+    ### 4.7 클라이언트 계약(클라이언트 코드가 아닌 문서상 약속)
+
+    - Access는 JS 메모리에만 둔다. 토큰 값은 `localStorage`·`sessionStorage`·`BroadcastChannel`·로그에 넣지 않는다.
+    - 새로고침 등으로 메모리의 Access가 없으면 `POST /auth/refresh`로 복구한다.
+    - 갱신은 탭 안에서 단일 비행(single-flight)으로, 탭 사이에서는 토큰 값을 공유하지 않는 잠금(예: Web Locks API)으로
+      직렬화한다. 각 탭은 자기 Access를 직접 받는다. 동시 갱신과 자동 네트워크 재시도는 하지 않는다. 이미 회전된
+      Refresh를 다시 보내면 재사용으로 판정되어 그 세션이 폐기된다.
+    - 401 응답에 `reason`이 없거나 `ACCESS_TOKEN_EXPIRED`이면 갱신을 한 번 하고 원래 요청을 한 번 다시 보낸다. 그 밖의
+      사유는 6절의 사유 표를 따른다.
+    - 로그아웃이나 사용자 전환 시 메모리 토큰과 사용자·세션 범위 캐시(과목 목록, 신청 목록, 티켓 상태 등)를 지운다.
+
+    ## 5. 대기열 티켓 프로토콜
+
+    - 대기열 대상은 LOGIN·ADMISSION·ENROLLMENT·CANCELLATION 4유형이다. 나머지 연산은 즉시 처리하며 대기열과 N 슬롯을
+      쓰지 않는다.
+    - 새 티켓을 만들면 항상 **202**와 접수증(`Location`, `Retry-After: 2`)을 반환한다. 202는 업무 성공이 아니다. 접수
+      단계의 오류는 4xx이며 티켓을 만들지 않는다. 접수증 `status`는 접수 확정 시점의 스냅샷(RECEIVED|WAITING)이며 이후
+      상태를 보장하지 않는다.
+    - 미완료(RECEIVED·WAITING·PROCESSING) 제한: 인증 전에는 익명 컨텍스트당 LOGIN 1건, 인증 후에는 검증 사용자당(모든
+      세션 합산) 1건이다. 위반은 409 E03이며 알 수 있으면 본인 소유 `activeTicketId`를 준다. 로그인 본문에 입력한
+      사용자ID는 LOGIN 티켓의 소유권이나 유일성 기준이 아니다.
+    - 서버 접수 순서(티켓 번호)로 전역 FIFO claim하고, 같은 과목의 학생 신청·취소는 배치·복구를 넘어 티켓 순으로
+      판정한다. 전체 완료 순서와 클릭 시각 순서는 보장하지 않는다. N은 동시에 점유할 수 있는 작업 슬롯 수이며 로그인
+      사용자 수·대기열 길이·정원이 아니다. 슬롯·리스·복구 세대는 API 필드가 아니다.
+    - **실행 권한은 원래 세션에 고정된다.** 인증 후 3유형은 실행 직전에 티켓을 만든 원래 세션이 ACTIVE이고 만료 전인지,
+      역할·본인 소유·입장(학생 수강신청 업무)이 유효한지 다시 확인한다. 아니면 E02(입장만 없으면 E15)로 종결한다. Access
+      만료만으로는 접수된 작업을 거절하지 않는다. 새로 로그인한 세션이 원래 세션의 실행 권한을 대신하지 않는다.
+      재인가·업무 커밋·로그아웃은 세션 기준으로 직렬화하며, 로그아웃이 이미 커밋된 작업을 소급 취소하지 않는다.
+    - **조회 권한**: LOGIN 티켓은 원래 익명 컨텍스트의 소유 증명 쿠키로만, 나머지 유형은 같은 사용자의 유효한
+      Access(티켓을 만든 세션이 아니어도 됨, 재로그인 포함)로 조회한다.
+    - 종결 결과 `{code, completedAt}`와 티켓의 유형·대상 과목은 불변이다. 이후의 취소·폐강·관리자 배정이 과거 결과를
+      고치지 않는다. 결과에는 현재 여석·신청 목록·자격 증명이 없으므로 클라이언트는 필요한 자원을 다시 조회한다.
+    - `queuePosition`은 WAITING일 때 자기보다 앞선 WAITING 티켓 수 + 1인 참고값이다. 예상 소요 시간이나 완료 순서가
+      아니다. 권장 폴링 간격은 2초다.
+    - E99는 안전한 소유권 회수 후 재투입 한도를 소진한 티켓의 종결 결과에만 쓴다. 일반 서버 오류(500)가 아니다.
+
+    | requestType | 성공 | 거절 결과 코드 |
+    |---|---|---|
+    | LOGIN | OK | E01(인증 불일치, 자격 증명 컨텍스트 소실·만료), E99 |
+    | ADMISSION | OK | E02(원래 세션 무효·학생 아님), E99 |
+    | ENROLLMENT | OK | E02, E15, E04, E05, E06, E07(여석 없음, 대기명단 아님), E99 |
+    | CANCELLATION | OK | E02, E15, E04, E05, E08(본인 현재 신청 없음), E99 |
+
+    실행 단계의 E04는 고정된 대상 과목을 찾지 못할 때의 방어용 판정이다. 과목은 삭제되지 않으므로 정상 흐름에서는
+    나오지 않는다.
+
+    ## 6. 오류 규약
+
+    오류 본문은 RFC 9457 Problem Details다: `type`(`urn:crs:problem:{code}`), `title`, `status`(HTTP 상태와 같음),
+    `detail`, `code`, 선택 `reason`(E02에만), 선택 `activeTicketId`(E03에만), `violations`(E09에 필수).
+
+    | code | HTTP | 의미 |
+    |---|---|---|
+    | E01 | 401 | 토큰 교환 대상 LOGIN 티켓이 거절로 종결됨(재로그인) |
+    | E02 | 401 / 403 | 인증 없음·무효·만료(401), 권한·소유권·소유 증명·CSRF 실패(403) |
+    | E03 | 409 | 미완료 요청 있음, 또는 토큰 교환 시 LOGIN 티켓 미종결 |
+    | E04 | 404 | 과목 없음 |
+    | E05 | 409 | 폐강 과목 |
+    | E06 | 409 | 이미 신청한 과목 |
+    | E09 | 400 | 입력값 오류 |
+    | E10 | 409 | 과목코드 중복(폐강 과목 포함) |
+    | E11 | 409 | 변경한 정원이 현재 활성 인원보다 작음 |
+    | E13 | 422 | 학생 계정 아님 |
+    | E14 | 409 | 폐강 대상 아님(이미 폐강 포함) |
+    | E15 | 409 | 수강신청 화면 미입장 |
+    | INTERNAL_ERROR | 500 | 기술 오류. 업무 결과 코드가 아니다. |
+
+    E07·E08·E99는 티켓 종결 결과로만 전달된다. 티켓 조회 200 응답이 거절 결과를 담는 것은 HTTP 오류가 아니다.
+
+    | reason | HTTP | 뜻 | 클라이언트 조치 |
+    |---|---|---|---|
+    | (없음) | 401 | Access 없음, 형식·서명·발급자·대상 불일치 | 갱신 1회 후 재시도 |
+    | `ACCESS_TOKEN_EXPIRED` | 401 | Access 만료(세션은 유효할 수 있음) | 갱신 1회 후 재시도 |
+    | `SESSION_REVOKED` | 401 | 세션 폐기(로그아웃·재사용 탐지) | 재로그인 |
+    | `SESSION_EXPIRED` | 401 | 세션 절대 만료(7일) | 재로그인 |
+    | `REFRESH_TOKEN_INVALID` | 401 | Refresh 없음·알 수 없음 | 재로그인 |
+    | `REFRESH_TOKEN_REUSED` | 401 | 소비된 Refresh 재사용, 해당 세션 폐기 | 재로그인 |
+    | `LOGIN_PROOF_INVALID` | 403 | 소유 증명 없음·불일치 | 재로그인 |
+    | `LOGIN_PROOF_EXPIRED` | 403 | 소유 증명 만료 | 재로그인 |
+    | `LOGIN_EXCHANGE_CONSUMED` | 403 | 이미 최초 토큰을 받음 | Refresh 쿠키가 있으면 갱신, 없으면 재로그인 |
+    | `CSRF_CHECK_FAILED` | 403 | Origin·`X-CSRF-Protection` 검사 실패 | 클라이언트 설정 수정 |
+    | `FORBIDDEN` | 403 | 역할·소유권 불일치, 티켓 접근 불가 | 같은 요청 반복 금지 |
+
+    오류 응답은 비밀번호·토큰·해시, 내부 슬롯·리스·소유권 세대, 다른 사용자의 정보, 남의 티켓 존재 여부를 드러내지
+    않는다. E09 `violations[].message`에 입력 값(특히 비밀번호)을 되풀이하지 않는다.
+
+    ## 7. 공통 판정 순서
+
+    연산 설명에 별도 순서가 있으면 그것을 따른다.
+
+    1. 쿠키 변경 요청의 Origin·`X-CSRF-Protection` 검사(403)
+    2. Access 인증(401)
+    3. 역할·소유권(403)
+    4. 학생 수강신청 업무의 화면 입장(409 E15)
+    5. 입력 형식·범위(400 E09)
+    6. 업무 판정(404·409·422). 과목 단위 변경은 같은 과목 잠금 아래에서 다시 검증한다.
+servers:
+  - url: https://{apiHost}/api/v1
+    description: 예시 배포 주소이며 실제 운영 주소가 아니다. 웹(app.example.com)과 API(api.example.com)는 같은 사이트·다른 출처다.
+    variables:
+      apiHost:
+        default: api.example.com
+        description: API 호스트 이름. 예약된 예시 도메인이며 실제 배포 도메인은 미정이다.
+tags:
+  - name: auth
+    description: 로그인 접수·토큰 수령·토큰 갱신·로그아웃(AUT-01)
+  - name: queue
+    description: 수강신청 화면 진입과 대기 티켓 조회(AUT-02, QUE-01)
+  - name: courses
+    description: 과목 검색과 상세 조회(ENR-01)
+  - name: enrollments
+    description: 학생 본인의 수강 신청·취소와 현재 신청 과목 조회(ENR-02)
+  - name: professor
+    description: 교수 담당 과목 조회·등록·수정·폐강(CMG)
+  - name: admin
+    description: 관리자 수강 배정·서비스 설정·폐강 관리(ADM)
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: 로그인 요청 접수(대기열 LOGIN 티켓 발급)
+      description: |
+        공개 요청이다. 사용자ID·비밀번호를 받아 공통 대기열에 LOGIN 티켓을 만들고 202 접수증을 반환한다. 202는 인증
+        성공이 아니다. 결과는 `GET /tickets/{ticketId}`로 확인하고, 성공하면 `POST /auth/login-tickets/{ticketId}/tokens`로
+        토큰을 받는다. Access 토큰은 요구하지 않으며 보내도 무시한다.
+
+        **비밀번호 취급**
+        - 영구 보관하는 값은 미리 등록된 계정(ENT-01)의 비밀번호 해시뿐이다.
+        - 요청으로 받은 비밀번호 원문은 접수 시각부터 최대 5분(`credentialExpiresAt`) 동안 서버 메모리의 단기 컨텍스트에만
+          둔다. DB·티켓·이력·로그·오류 응답에 남기지 않는다.
+        - 차례가 되면 처리기가 일반 비밀번호 검증기로 해시와 비교하고 원문을 바로 폐기한다. 검증 전에 컨텍스트가
+          소실·만료되면 E01로 종결하며 자동으로 다시 실행하지 않는다(재로그인).
+        - ID 불일치와 비밀번호 불일치는 구분하지 않고 모두 E01이다.
+
+        **익명 소유 증명**
+        - 접수할 때 추측 불가능한 소유 증명을 새로 만들어 `__Host-crs_login` 쿠키(600초)로만 전달한다. 서버는 검증용
+          다이제스트와 익명 컨텍스트 결합만 보존한다.
+        - 익명 컨텍스트(유효한 소유 증명 쿠키)당 미완료 LOGIN은 1건이다. 요청에 붙은 쿠키가 미완료 LOGIN 티켓을 가리키면
+          409 E03이며 새 티켓과 쿠키를 만들지 않는다. 쿠키가 없거나 종결된 티켓을 가리키면 새 익명 컨텍스트와 새 쿠키를
+          발급한다.
+
+        **판정 순서**: Origin·CSRF 헤더(403) → 본문 형식(400 E09) → 컨텍스트의 미완료 LOGIN(409 E03) → 접수(202).
+
+        처리기 성공 시 세션 생성과 LOGIN 결과 OK를 원자적으로 커밋한다. 성공이 커밋된 뒤에는 단기 컨텍스트가 사라져도 커밋된
+        결과와 세션이 유지된다. 토큰은 티켓 결과나 조회 응답에 넣지 않는다. 로그인은 같은 사용자의 다른 세션에 영향을 주지
+        않는다(중복 로그인 제어 없음).
+      x-business-functions:
+        - id: AUT-01-01
+          source: '단위업무기술서.md#aut-01-01'
+        - id: QUE-01-01
+          source: '단위업무기술서.md#que-01-01'
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/OriginHeader'
+        - $ref: '#/components/parameters/CsrfProtectionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              student:
+                summary: 학생 로그인(가짜 예시 자격 증명)
+                value:
+                  userId: '20260001'
+                  password: example-password
+      responses:
+        '202':
+          description: 로그인 요청 접수. 인증 성공을 뜻하지 않는다.
+          headers:
+            Location:
+              $ref: '#/components/headers/TicketLocation'
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+            Set-Cookie:
+              $ref: '#/components/headers/SetLoginProofCookie'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginTicketReceipt'
+              examples:
+                accepted:
+                  summary: 접수 확정(대기 중)
+                  value:
+                    ticketId: '1001'
+                    requestType: LOGIN
+                    status: WAITING
+                    submittedAt: '2026-11-10T00:00:00Z'
+                    statusUrl: /api/v1/tickets/1001
+                    credentialExpiresAt: '2026-11-10T00:05:00Z'
+                    proofExpiresAt: '2026-11-10T00:10:00Z'
+        '400':
+          description: 입력값 오류(E09). 티켓을 만들지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                missingPassword:
+                  $ref: '#/components/examples/ProblemE09MissingPassword'
+                unknownField:
+                  $ref: '#/components/examples/ProblemE09UnknownLoginField'
+        '403':
+          $ref: '#/components/responses/CsrfRejected'
+        '409':
+          description: 이 익명 컨텍스트에 미완료 LOGIN 티켓이 있음(E03). 새 티켓·쿠키를 만들지 않으며 기존 티켓을 계속 조회한다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                loginPending:
+                  $ref: '#/components/examples/ProblemE03LoginPending'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/login-tickets/{ticketId}/tokens:
+    parameters:
+      - $ref: '#/components/parameters/TicketIdPath'
+    post:
+      tags: [auth]
+      operationId: exchangeLoginTokens
+      summary: 성공한 LOGIN 티켓으로 최초 토큰 수령(1회)
+      description: |
+        원래 익명 컨텍스트의 소유 증명(`__Host-crs_login`)으로 성공한 LOGIN 티켓의 최초 토큰을 **한 번만** 받는다. Access
+        토큰은 요구하지 않는다. 티켓 조회(`GET /tickets/{ticketId}`)는 토큰을 발급하지 않는다. 요청 본문은 없다.
+
+        **판정 순서**
+        1. Origin·CSRF 헤더(403 `CSRF_CHECK_FAILED`) → 본문 없음·`ticketId` 형식(400 E09).
+        2. 소유 증명 쿠키가 이 번호의 LOGIN 티켓을 만든 익명 컨텍스트의 증명과 일치해야 한다. 쿠키 없음, 불일치, 티켓 없음,
+           LOGIN이 아닌 티켓은 모두 같은 403 `LOGIN_PROOF_INVALID`다(존재 여부 비노출). 일치하지만 `proofExpiresAt`이
+           지났으면 403 `LOGIN_PROOF_EXPIRED`다.
+        3. 티켓이 미완료이면 409 E03(`activeTicketId`는 이 티켓)이다. 폴링 후 다시 시도한다.
+        4. 티켓이 REJECTED(결과 E01 또는 E99)이면 401 E01이다. 다시 로그인하며, 정확한 결과 코드는 티켓 조회로 확인한다.
+        5. 이미 최초 토큰을 받았으면 403 `LOGIN_EXCHANGE_CONSUMED`다. 재수령은 없다.
+        6. 로그인으로 생긴 세션이 REVOKED이면 401 `SESSION_REVOKED`, 만료되었으면 401 `SESSION_EXPIRED`다.
+        7. 세션의 최초 토큰 발급 시각 기록, 첫 Refresh 기록 생성, Access 발급을 원자적으로 확정하고 200과 Refresh 쿠키를
+           반환한다.
+
+        **응답 유실**
+        - 응답 전체(쿠키 포함)를 잃으면 교환은 이미 소비되었으므로 다시 로그인한다.
+        - Refresh 쿠키는 받았지만 본문(Access)을 잃었으면 `POST /auth/refresh`로 복구한다.
+        - 교환의 성공·실패·유실과 무관하게 LOGIN 티켓의 종결 결과는 바뀌지 않는다.
+        - 소유 증명 쿠키는 600초 만료까지 남을 수 있지만 소비 기록 때문에 다시 토큰을 받는 데 쓸 수 없다. 이 연산은
+          소유 증명 쿠키를 지우지 않는다.
+      x-business-functions:
+        - id: AUT-01-03
+          source: '단위업무기술서.md#aut-01-03'
+      security:
+        - loginProofCookie: []
+      parameters:
+        - $ref: '#/components/parameters/OriginHeader'
+        - $ref: '#/components/parameters/CsrfProtectionHeader'
+      responses:
+        '200':
+          description: 최초 토큰 발급. 본문에 Access, 쿠키에 Refresh를 담는다.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SetRefreshCookie'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              examples:
+                student:
+                  summary: 학생 최초 토큰(아직 화면 미입장)
+                  value:
+                    accessToken: eyJ0eXAiOiJKV1QifQ.eyJzdWIiOiIyMDI2MDAwMSJ9.ZXhhbXBsZS1vbmx5
+                    tokenType: Bearer
+                    expiresIn: 900
+                    user:
+                      userId: '20260001'
+                      name: 김하늘
+                      role: STUDENT
+                    session:
+                      expiresAt: '2026-11-17T00:00:04Z'
+                      admittedAt: null
+                professor:
+                  summary: 교수 최초 토큰(입장 개념 없음)
+                  value:
+                    accessToken: eyJ0eXAiOiJKV1QifQ.eyJzdWIiOiJQMTAwMSJ9.ZXhhbXBsZS1vbmx5
+                    tokenType: Bearer
+                    expiresIn: 900
+                    user:
+                      userId: P1001
+                      name: 김민수
+                      role: PROFESSOR
+                    session:
+                      expiresAt: '2026-11-17T00:00:30Z'
+                      admittedAt: null
+        '400':
+          description: 입력값 오류(E09). 상태를 바꾸지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidTicketId:
+                  $ref: '#/components/examples/ProblemE09InvalidTicketId'
+                bodyNotAllowed:
+                  $ref: '#/components/examples/ProblemE09BodyNotAllowed'
+        '401':
+          description: LOGIN 티켓이 거절로 종결됨(E01), 또는 연결된 세션이 폐기·만료됨(E02). 토큰을 발급하지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                loginRejected:
+                  $ref: '#/components/examples/ProblemE01LoginRejected'
+                sessionRevoked:
+                  $ref: '#/components/examples/ProblemE02SessionRevoked'
+                sessionExpired:
+                  $ref: '#/components/examples/ProblemE02SessionExpired'
+        '403':
+          description: CSRF 검사 실패, 소유 증명 없음·불일치·만료, 또는 이미 소비된 교환(E02). 상태를 바꾸지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                csrfFailed:
+                  $ref: '#/components/examples/ProblemE02CsrfFailed'
+                proofInvalid:
+                  $ref: '#/components/examples/ProblemE02LoginProofInvalid'
+                proofExpired:
+                  $ref: '#/components/examples/ProblemE02LoginProofExpired'
+                exchangeConsumed:
+                  $ref: '#/components/examples/ProblemE02LoginExchangeConsumed'
+        '409':
+          description: LOGIN 티켓이 아직 종결되지 않음(E03). 티켓을 폴링한 뒤 다시 시도한다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                loginIncomplete:
+                  $ref: '#/components/examples/ProblemE03LoginTicketIncomplete'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshTokens
+      summary: Refresh 쿠키로 Access 재발급과 Refresh 회전
+      description: |
+        Refresh 쿠키로 새 Access를 받고 Refresh를 회전한다. Access는 요구하지 않으므로 만료된 Access 상태에서도 쓸 수 있다.
+        대기열·N 슬롯·미완료 티켓 제한을 거치지 않지만 검증·회전·폐기는 원자적으로 처리한다. 요청 본문은 없다.
+
+        **판정 순서**
+        1. Origin·CSRF 헤더(403, 상태 변경 없음) → 본문 없음(400 E09).
+        2. 쿠키가 없거나 그 해시가 어떤 발급 기록과도 일치하지 않으면 401 `REFRESH_TOKEN_INVALID`다. **어떤 세션도 바꾸지
+           않는다.**
+        3. 일치한 기록의 세션이 REVOKED이면 401 `SESSION_REVOKED`, 현재 시각이 `expiresAt` 이후이면 401
+           `SESSION_EXPIRED`다(상태 변경 없음).
+        4. 일치한 기록이 이미 소비되었으면 재사용이다. 그 기록의 세션만 REVOKED(사유 REFRESH_REUSE)로 바꾸고 401
+           `REFRESH_TOKEN_REUSED`를 반환한다. 다른 세션은 그대로다.
+        5. 미소비 기록이면 소비 표시와 새 Refresh 생성을 원자적으로 확정하고 200과 새 쿠키를 반환한다.
+
+        같은 Refresh로 동시에 들어온 요청은 하나만 회전에 성공하고 나머지는 소비된 Refresh 제출이 되어 4번에 따라 세션이
+        폐기된다. 유예 시간은 없으므로 클라이언트는 4.7절의 단일 비행·탭 간 직렬화를 지켜야 하며 갱신 요청을 자동으로
+        재전송하지 않는다. 해시 조회·회전·재사용 폐기와 로그아웃은 같은 세션 단위로 직렬화한다. 로그아웃이 먼저 커밋되면 이
+        요청은 3번에 따라 401 `SESSION_REVOKED`이고, 이 회전이 먼저 커밋되면 이후 로그아웃이 소비된 쿠키로도 그 세션을 폐기해
+        여기서 발급한 새 Refresh·Access를 무효로 만든다. 401 응답은 Refresh 쿠키를 삭제한다. 응답의 `session.admittedAt`은
+        같은 세션의 입장 상태를 그대로 보여 준다.
+      x-business-functions:
+        - id: AUT-01-04
+          source: '단위업무기술서.md#aut-01-04'
+      security:
+        - refreshCookie: []
+      parameters:
+        - $ref: '#/components/parameters/OriginHeader'
+        - $ref: '#/components/parameters/CsrfProtectionHeader'
+      responses:
+        '200':
+          description: 새 Access와 회전된 Refresh 쿠키.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SetRefreshCookie'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              examples:
+                admittedStudent:
+                  summary: 입장한 학생 세션의 갱신(입장 상태 유지)
+                  value:
+                    accessToken: eyJ0eXAiOiJKV1QifQ.eyJzdWIiOiIyMDI2MDAwMSJ9.cmVmcmVzaGVkLWV4YW1wbGU
+                    tokenType: Bearer
+                    expiresIn: 900
+                    user:
+                      userId: '20260001'
+                      name: 김하늘
+                      role: STUDENT
+                    session:
+                      expiresAt: '2026-11-17T00:00:04Z'
+                      admittedAt: '2026-11-10T00:00:15Z'
+        '400':
+          description: 본문이 있음(E09). 상태를 바꾸지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                bodyNotAllowed:
+                  $ref: '#/components/examples/ProblemE09BodyNotAllowed'
+        '401':
+          description: Refresh 무효·재사용 또는 세션 폐기·만료(E02). Refresh 쿠키를 삭제한다. 재로그인한다.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearRefreshCookie'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                refreshInvalid:
+                  $ref: '#/components/examples/ProblemE02RefreshInvalid'
+                refreshReused:
+                  $ref: '#/components/examples/ProblemE02RefreshReused'
+                sessionRevoked:
+                  $ref: '#/components/examples/ProblemE02SessionRevoked'
+                sessionExpired:
+                  $ref: '#/components/examples/ProblemE02SessionExpired'
+        '403':
+          $ref: '#/components/responses/CsrfRejected'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: 로그아웃(현재 세션 폐기, 반복 가능)
+      description: |
+        대기열을 거치지 않는 직접 요청이며 같은 요청을 반복해도 204다. 요청 본문이나 쿼리로 세션ID를 받지 않는다. 자격
+        증명이 증명하는 자기 세션만 폐기하며 **어떤 경우에도 다른 세션을 바꾸지 않는다.**
+
+        **판정 순서**
+        1. Origin·CSRF 헤더(403, 상태 변경 없음) → 본문 없음(400 E09).
+        2. Refresh 쿠키가 있으면 쿠키 방식이다. 쿠키 해시가 발급된 Refresh 기록과 일치하면 **소비 여부와 무관하게** 그
+           기록의 세션이 증명된 것이다.
+           - 그 세션이 ACTIVE이고 만료 전이면 그 세션만 REVOKED(사유 LOGOUT, 폐기 시각)로 바꾼다. 소비된 해시여도 재사용
+             폐기(REFRESH_REUSE)나 401로 바꾸지 않고 정상 로그아웃으로 처리한다.
+           - 이미 폐기·만료된 세션이면 상태를 바꾸지 않고 같은 204다.
+           - 어떤 발급 기록과도 일치하지 않는 해시는 **어떤 세션도 바꾸지 않는다.**
+           - 쿠키 방식에서는 `Authorization` 헤더를 보지 않는다.
+        3. Refresh 쿠키가 없고 유효한 Access가 있으면 Access의 세션을 폐기한다. Access가 없거나 무효·만료이면 서버 상태를
+           바꾸지 않는다.
+        4. 어떤 경우에도 204와 함께 Refresh 쿠키와 로그인 소유 증명 쿠키를 삭제한다.
+
+        **직렬화**: 해시 조회·회전(`refreshTokens`)·재사용 폐기·로그아웃은 같은 세션 단위로 직렬화한다. 다른 탭의 갱신이
+        로그아웃 요청보다 먼저 커밋되어 쿠키가 소비 상태가 되었어도 로그아웃은 그 세션을 폐기하므로, 그 갱신으로 회전된 새
+        Refresh와 새 Access도 함께 무효가 된다. 로그아웃이 먼저 커밋되면 이후 갱신은 401 `SESSION_REVOKED`다. 204를 받은 뒤
+        같은 세션의 자격 증명이 살아남는 경우는 없다.
+
+        - 세션은 지우지 않고 REVOKED로 남긴다. 전 기기 로그아웃은 없다.
+        - 이 세션이 만든 미시작 작업은 실행 시 E02로 거절된다. 이미 커밋된 변경과 결과는 그대로다.
+        - 로그인 소유 증명 쿠키 삭제는 브라우저 상태 정리일 뿐 진행 중인 LOGIN 티켓을 취소하지 않는다(티켓 취소 기능 없음).
+          그 티켓이 성공해도 토큰을 받을 수 없으므로 생긴 세션은 쓰이지 않은 채 만료된다.
+        - 클라이언트는 응답과 무관하게 메모리 토큰과 사용자·세션 범위 캐시를 지운다.
+      x-business-functions:
+        - id: AUT-01-02
+          source: '단위업무기술서.md#aut-01-02'
+      security:
+        - refreshCookie: []
+        - accessBearer: []
+        - {}
+      parameters:
+        - $ref: '#/components/parameters/OriginHeader'
+        - $ref: '#/components/parameters/CsrfProtectionHeader'
+      responses:
+        '204':
+          description: |
+            로그아웃 처리 완료. 인식된 자격 증명(소비 여부와 무관하게 발급 기록과 일치한 Refresh, 또는 유효한 Access)의 세션을
+            폐기했거나 그 세션이 이미 폐기·만료된 상태다. 인식된 자격 증명이 없으면 서버 상태 변경 없이 쿠키만 삭제한다.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearAuthCookies'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+        '400':
+          description: 본문이 있음(E09). 상태를 바꾸지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                bodyNotAllowed:
+                  $ref: '#/components/examples/ProblemE09BodyNotAllowed'
+        '403':
+          $ref: '#/components/responses/CsrfRejected'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /admission:
+    post:
+      tags: [queue]
+      operationId: requestAdmission
+      summary: 수강신청 화면 진입 요청(대기열 ADMISSION 티켓 발급)
+      description: |
+        학생 세션의 수강신청 화면 입장을 대기열 순서대로 허가한다. 입장은 **세션 단위**다. 같은 세션의 토큰 갱신은 입장을
+        유지하고, 새 로그인 세션은 다시 입장해야 한다. 교수·관리자는 입장 개념이 없다. 요청 본문은 없다.
+
+        **판정 순서**: Access(401) → STUDENT 역할(403) → 본문 없음(400 E09) → 현재 세션이 이미 입장했으면 200(새 티켓 없음,
+        사용자에게 미완료 티켓이 있어도 200) → 사용자 미완료 티켓 확인과 티켓 생성을 원자적으로(409 E03) → 202.
+
+        **실행 단계**: 원래 세션이 ACTIVE·만료 전이고 학생인지 다시 확인하며, 아니면 E02로 종결한다. 성공하면 원래 세션의
+        입장 시각과 티켓 결과 OK를 함께 커밋한다. 다른 세션에는 입장을 기록하지 않는다.
+      x-business-functions:
+        - id: AUT-02-01
+          source: '단위업무기술서.md#aut-02-01'
+        - id: QUE-01-01
+          source: '단위업무기술서.md#que-01-01'
+      security:
+        - accessBearer: []
+      responses:
+        '200':
+          description: 현재 세션이 이미 입장함. 새 티켓을 만들지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdmissionState'
+              examples:
+                alreadyAdmitted:
+                  summary: 이미 입장한 세션
+                  value:
+                    admittedAt: '2026-11-10T00:00:15Z'
+        '202':
+          description: 입장 요청 접수. 입장 성공을 뜻하지 않는다.
+          headers:
+            Location:
+              $ref: '#/components/headers/TicketLocation'
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/TicketReceipt'
+                  - properties:
+                      requestType:
+                        const: ADMISSION
+              examples:
+                accepted:
+                  summary: 입장 요청 접수
+                  value:
+                    ticketId: '1042'
+                    requestType: ADMISSION
+                    status: WAITING
+                    submittedAt: '2026-11-10T00:00:10Z'
+                    statusUrl: /api/v1/tickets/1042
+        '400':
+          description: 본문이 있음(E09). 티켓을 만들지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                bodyNotAllowed:
+                  $ref: '#/components/examples/ProblemE09BodyNotAllowed'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          $ref: '#/components/responses/RoleForbidden'
+        '409':
+          description: 사용자에게 미완료 티켓이 있음(E03). 티켓을 만들지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                ticketPending:
+                  $ref: '#/components/examples/ProblemE03TicketPending'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /tickets/{ticketId}:
+    parameters:
+      - $ref: '#/components/parameters/TicketIdPath'
+    get:
+      tags: [queue]
+      operationId: getTicket
+      summary: 본인 대기 티켓의 상태·순번·종결 결과 조회
+      description: |
+        티켓 유형에 따라 **조회 자격이 다르다**(조건부 소유).
+        - LOGIN: 원래 익명 컨텍스트의 소유 증명 쿠키(`__Host-crs_login`)가 이 티켓과 일치하고 만료 전이어야 한다. 다른
+          세션의 유효한 Access가 있어도 대신하지 않는다.
+        - ADMISSION·ENROLLMENT·CANCELLATION: 유효한 Access의 사용자가 티켓의 검증 요청자와 같아야 한다. 티켓을 만든
+          세션이 아니어도 같은 사용자의 유효한 세션(재로그인 포함)이면 된다.
+
+        **판정 순서(존재 여부 비노출)**
+        1. `ticketId` 형식(400 E09).
+        2. `Authorization` 헤더가 **있으면** 티켓을 찾기 전에 먼저 검증하고, 무효·만료이거나 세션이 폐기·만료되었으면 401
+           E02다. 헤더가 없으면 이 단계를 건너뛴다.
+        3. 위 조회 자격을 만족하지 않으면 원인(티켓 없음, 다른 사용자 티켓, 소유 증명 없음·불일치·만료, 유형에 맞지 않는
+           자격 증명)과 관계없이 동일한 403 E02 `FORBIDDEN`이다.
+        4. 200. 미완료 티켓이면 `Retry-After`로 다음 조회 간격을 안내한다.
+
+        조회는 토큰을 발급하지 않는다. 성공한 LOGIN 티켓의 응답에도 토큰·세션 정보가 없으며 토큰은
+        `POST /auth/login-tickets/{ticketId}/tokens`로만 받는다. 폴링 중 Access가 만료되면 갱신 후 다시 조회한다. Access
+        만료는 접수된 작업을 무효로 만들지 않는다. 종결 결과(SUCCEEDED·REJECTED)는 HTTP 오류가 아니라 200 본문으로 전달한다.
+      x-business-functions:
+        - id: QUE-01-02
+          source: '단위업무기술서.md#que-01-02'
+        - id: AUT-03-01
+          source: '단위업무기술서.md#aut-03-01'
+      security:
+        - loginProofCookie: []
+        - accessBearer: []
+      responses:
+        '200':
+          description: 티켓 상태. 종결되었으면 불변 결과를 포함한다.
+          headers:
+            Retry-After:
+              description: 티켓이 미완료(RECEIVED·WAITING·PROCESSING)일 때만 보내는 권장 재조회 간격(초). 이 초안의 값은 2다.
+              schema:
+                type: integer
+                minimum: 1
+              example: 2
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+              examples:
+                loginWaiting:
+                  summary: LOGIN 대기 중(소유 증명 쿠키로 조회)
+                  value:
+                    ticketId: '1001'
+                    requestType: LOGIN
+                    courseCode: null
+                    submittedAt: '2026-11-10T00:00:00Z'
+                    status: WAITING
+                    queuePosition: 3
+                    result: null
+                loginSucceeded:
+                  summary: LOGIN 성공(토큰은 교환 연산으로만 수령)
+                  value:
+                    ticketId: '1001'
+                    requestType: LOGIN
+                    courseCode: null
+                    submittedAt: '2026-11-10T00:00:00Z'
+                    status: SUCCEEDED
+                    queuePosition: null
+                    result:
+                      code: OK
+                      completedAt: '2026-11-10T00:00:04Z'
+                loginRejected:
+                  summary: LOGIN 거절(인증 불일치 또는 자격 증명 컨텍스트 만료)
+                  value:
+                    ticketId: '1003'
+                    requestType: LOGIN
+                    courseCode: null
+                    submittedAt: '2026-11-10T00:00:01Z'
+                    status: REJECTED
+                    queuePosition: null
+                    result:
+                      code: E01
+                      completedAt: '2026-11-10T00:00:05Z'
+                admissionProcessing:
+                  summary: 화면 진입 처리 중
+                  value:
+                    ticketId: '1042'
+                    requestType: ADMISSION
+                    courseCode: null
+                    submittedAt: '2026-11-10T00:00:10Z'
+                    status: PROCESSING
+                    queuePosition: null
+                    result: null
+                enrollmentSucceeded:
+                  summary: 수강 신청 성공(현재 여석·목록은 별도 조회)
+                  value:
+                    ticketId: '1187'
+                    requestType: ENROLLMENT
+                    courseCode: CSE3010
+                    submittedAt: '2026-11-10T00:01:00Z'
+                    status: SUCCEEDED
+                    queuePosition: null
+                    result:
+                      code: OK
+                      completedAt: '2026-11-10T00:01:03Z'
+                cancellationRejectedNoEnrollment:
+                  summary: 수강 취소 거절(본인 현재 신청 없음)
+                  value:
+                    ticketId: '1301'
+                    requestType: CANCELLATION
+                    courseCode: GEN1001
+                    submittedAt: '2026-11-10T00:02:00Z'
+                    status: REJECTED
+                    queuePosition: null
+                    result:
+                      code: E08
+                      completedAt: '2026-11-10T00:02:02Z'
+                enrollmentRejectedNoSeat:
+                  summary: 수강 신청 거절(여석 없음, 대기명단 아님)
+                  value:
+                    ticketId: '1420'
+                    requestType: ENROLLMENT
+                    courseCode: GEN1001
+                    submittedAt: '2026-11-10T00:03:00Z'
+                    status: REJECTED
+                    queuePosition: null
+                    result:
+                      code: E07
+                      completedAt: '2026-11-10T00:03:04Z'
+                enrollmentRejectedSessionRevoked:
+                  summary: 원래 세션이 실행 전에 로그아웃되어 거절
+                  value:
+                    ticketId: '1533'
+                    requestType: ENROLLMENT
+                    courseCode: HIS1002
+                    submittedAt: '2026-11-10T00:04:00Z'
+                    status: REJECTED
+                    queuePosition: null
+                    result:
+                      code: E02
+                      completedAt: '2026-11-10T00:04:09Z'
+                recoveryExhausted:
+                  summary: 안전 회수 후 재투입 한도 소진(E99)
+                  value:
+                    ticketId: '1610'
+                    requestType: CANCELLATION
+                    courseCode: CSE3010
+                    submittedAt: '2026-11-10T00:05:00Z'
+                    status: REJECTED
+                    queuePosition: null
+                    result:
+                      code: E99
+                      completedAt: '2026-11-10T00:07:10Z'
+        '400':
+          description: 티켓 번호 형식 오류(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidTicketId:
+                  $ref: '#/components/examples/ProblemE09InvalidTicketId'
+        '401':
+          description: '`Authorization` 헤더가 있고 Access가 무효·만료이거나 그 세션이 폐기·만료됨(E02). 티켓을 찾기 전에 판정한다.'
+          headers:
+            WWW-Authenticate:
+              $ref: '#/components/headers/WwwAuthenticateBearer'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                accessExpired:
+                  $ref: '#/components/examples/ProblemE02AccessExpired'
+                sessionRevoked:
+                  $ref: '#/components/examples/ProblemE02SessionRevoked'
+        '403':
+          description: 조회 자격 없음(E02 `FORBIDDEN`). 티켓 없음과 다른 사용자 티켓을 구별하지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                ticketForbidden:
+                  $ref: '#/components/examples/ProblemE02TicketForbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /courses:
+    get:
+      tags: [courses]
+      operationId: searchCourses
+      summary: 과목 검색(폐강 과목 포함, 20건 페이지)
+      description: |
+        과목 목록을 과목코드 ASCII 오름차순으로 페이지당 20건씩 반환한다. 폐강 과목도 `status`=CLOSED로 포함한다. 대기열을
+        거치지 않는 짧은 커밋 스냅샷 읽기다.
+
+        - 접근: 모든 역할의 유효한 Access. 학생은 현재 세션이 화면에 입장했어야 한다(아니면 409 E15). 교수·관리자는 입장이
+          필요 없다.
+        - `enrolled`: 학생이 호출할 때만 포함한다. 그 학생에게 이 과목의 현재 ENROLLED 행이 있으면 true, 없거나 폐강으로
+          CLOSED가 된 행이면 false다. 교수·관리자 응답에는 이 필드가 없다. 다른 학생의 신청 여부는 어떤 형태로도 노출하지
+          않는다.
+        - `remainingSeats`는 조회 시점 참고값이며 신청 성공을 보장하지 않는다. 최종 판정은 대기열 실행 트랜잭션이 한다.
+        - 화면 버튼 기준: OPEN이고 미신청이면 신청, OPEN이고 신청했으면 취소, CLOSED이면 비활성.
+
+        **판정 순서**: Access(401) → 학생 입장(409 E15) → 쿼리(400 E09) → 200.
+      x-business-functions:
+        - id: ENR-01-01
+          source: '단위업무기술서.md#enr-01-01'
+      security:
+        - accessBearer: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryQuery'
+        - $ref: '#/components/parameters/SearchQuery'
+        - $ref: '#/components/parameters/PageQuery'
+      responses:
+        '200':
+          description: 과목 페이지.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoursePage'
+              examples:
+                studentMajor:
+                  summary: 학생의 전공 과목 검색(category=MAJOR)
+                  value:
+                    items:
+                      - courseCode: CSE3010
+                        name: 데이터베이스
+                        category: MAJOR
+                        professorName: 김민수
+                        evaluationType: RELATIVE
+                        capacity: 40
+                        minimumEnrollment: 10
+                        activeEnrollmentCount: 38
+                        remainingSeats: 2
+                        classroom: 공학관 301
+                        status: OPEN
+                        enrolled: true
+                      - courseCode: CSE4020
+                        name: 컴파일러
+                        category: MAJOR
+                        professorName: 김민수
+                        evaluationType: ABSOLUTE
+                        capacity: 30
+                        minimumEnrollment: 6
+                        activeEnrollmentCount: 2
+                        remainingSeats: 28
+                        classroom: 공학관 402
+                        status: OPEN
+                        enrolled: false
+                      - courseCode: MAJ2001
+                        name: 운영체제
+                        category: MAJOR
+                        professorName: 김민수
+                        evaluationType: RELATIVE
+                        capacity: 35
+                        minimumEnrollment: 8
+                        activeEnrollmentCount: 0
+                        remainingSeats: 35
+                        classroom: 공학관 205
+                        status: CLOSED
+                        enrolled: false
+                    page: 1
+                    pageSize: 20
+                    totalItems: 3
+                    totalPages: 1
+                studentKeyword:
+                  summary: 학생의 검색어 검색(q=GEN, 정원 초과 과목)
+                  value:
+                    items:
+                      - courseCode: GEN1001
+                        name: 글쓰기와 소통
+                        category: GENERAL
+                        professorName: 최유진
+                        evaluationType: PASS_FAIL
+                        capacity: 30
+                        minimumEnrollment: 5
+                        activeEnrollmentCount: 31
+                        remainingSeats: 0
+                        classroom: 인문관 101
+                        status: OPEN
+                        enrolled: false
+                    page: 1
+                    pageSize: 20
+                    totalItems: 1
+                    totalPages: 1
+                professorView:
+                  summary: 교수·관리자 호출(enrolled 없음)
+                  value:
+                    items:
+                      - courseCode: HIS1002
+                        name: 한국사의 이해
+                        category: GENERAL
+                        professorName: 박서연
+                        evaluationType: ABSOLUTE
+                        capacity: 40
+                        minimumEnrollment: 5
+                        activeEnrollmentCount: 3
+                        remainingSeats: 37
+                        classroom: 인문관 204
+                        status: OPEN
+                    page: 1
+                    pageSize: 20
+                    totalItems: 1
+                    totalPages: 1
+                beyondLastPage:
+                  summary: 마지막 페이지 뒤 요청(category=MAJOR, page=5)
+                  value:
+                    items: []
+                    page: 5
+                    pageSize: 20
+                    totalItems: 3
+                    totalPages: 1
+                noMatch:
+                  summary: 결과 0건
+                  value:
+                    items: []
+                    page: 1
+                    pageSize: 20
+                    totalItems: 0
+                    totalPages: 0
+        '400':
+          description: 쿼리 오류(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidPage:
+                  $ref: '#/components/examples/ProblemE09InvalidPage'
+                unknownQuery:
+                  $ref: '#/components/examples/ProblemE09UnknownQuery'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '409':
+          $ref: '#/components/responses/AdmissionRequired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /courses/{courseCode}:
+    parameters:
+      - $ref: '#/components/parameters/CourseCodePath'
+    get:
+      tags: [courses]
+      operationId: getCourse
+      summary: 과목 상세·여석 조회
+      description: |
+        한 과목의 커밋된 스냅샷을 반환한다. 폐강 과목도 200으로 조회되며 신청·취소할 수 없다. 접근 조건과 `enrolled`
+        규칙은 과목 검색과 같다. 여석은 참고값이며 수동 새로고침으로 다시 읽는다.
+
+        **판정 순서**: Access(401) → 학생 입장(409 E15) → 과목코드 형식(400 E09) → 과목 없음(404 E04) → 200.
+      x-business-functions:
+        - id: ENR-01-02
+          source: '단위업무기술서.md#enr-01-02'
+      security:
+        - accessBearer: []
+      responses:
+        '200':
+          description: 과목 상세.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+              examples:
+                openEnrolled:
+                  summary: 학생이 신청한 개설 과목
+                  value:
+                    courseCode: CSE3010
+                    name: 데이터베이스
+                    category: MAJOR
+                    professorName: 김민수
+                    evaluationType: RELATIVE
+                    capacity: 40
+                    minimumEnrollment: 10
+                    activeEnrollmentCount: 38
+                    remainingSeats: 2
+                    classroom: 공학관 301
+                    status: OPEN
+                    enrolled: true
+                closed:
+                  summary: 폐강 과목(계산상 여석과 무관하게 신청 불가)
+                  value:
+                    courseCode: MAJ2001
+                    name: 운영체제
+                    category: MAJOR
+                    professorName: 김민수
+                    evaluationType: RELATIVE
+                    capacity: 35
+                    minimumEnrollment: 8
+                    activeEnrollmentCount: 0
+                    remainingSeats: 35
+                    classroom: 공학관 205
+                    status: CLOSED
+                    enrolled: false
+        '400':
+          description: 과목코드 형식 오류(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidCourseCode:
+                  $ref: '#/components/examples/ProblemE09InvalidCourseCodePath'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '404':
+          $ref: '#/components/responses/CourseNotFound'
+        '409':
+          $ref: '#/components/responses/AdmissionRequired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /me/enrollments:
+    get:
+      tags: [enrollments]
+      operationId: listMyEnrollments
+      summary: 내 현재 신청 과목 조회(ENROLLED만, 페이지 없음)
+      description: |
+        학생 본인의 **현재 신청(ENROLLED) 과목만** 과목코드 ASCII 오름차순으로 전부 반환한다. 학생ID는 Access 주체에서만
+        가져온다.
+
+        - 폐강으로 CLOSED가 된 행은 DB에 보존되지만 이 목록에서 제외한다. 폐강 사실은 과목 검색의 `status`로 확인한다.
+        - 취소한 행은 삭제되어 없다. 신청·취소 이력 조회 연산은 없다. 과거 요청의 결과는 각 티켓 결과로만 남는다.
+        - 관리자 배정(`enrollmentType`=ADMIN) 행도 포함하며 학생이 취소할 수 있다.
+
+        **판정 순서**: Access(401) → STUDENT(403) → 학생 입장(409 E15) → 쿼리 없음(400 E09) → 200.
+      x-business-functions:
+        - id: ENR-02-03
+          source: '단위업무기술서.md#enr-02-03'
+      security:
+        - accessBearer: []
+      responses:
+        '200':
+          description: 현재 신청 과목 전체.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyEnrollmentList'
+              examples:
+                current:
+                  summary: 학생 신청 1건과 관리자 배정 1건
+                  value:
+                    items:
+                      - courseCode: ART1001
+                        name: 미술의 이해
+                        category: GENERAL
+                        professorName: 이도윤
+                        classroom: 예술관 110
+                        enrollmentType: ADMIN
+                        enrolledAt: '2026-11-09T08:00:00Z'
+                        status: ENROLLED
+                      - courseCode: CSE3010
+                        name: 데이터베이스
+                        category: MAJOR
+                        professorName: 김민수
+                        classroom: 공학관 301
+                        enrollmentType: STUDENT
+                        enrolledAt: '2026-11-10T00:01:03Z'
+                        status: ENROLLED
+                empty:
+                  summary: 현재 신청 과목 없음
+                  value:
+                    items: []
+        '400':
+          description: 정의되지 않은 쿼리 파라미터(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                unknownQuery:
+                  $ref: '#/components/examples/ProblemE09UnknownQuery'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          $ref: '#/components/responses/RoleForbidden'
+        '409':
+          $ref: '#/components/responses/AdmissionRequired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [enrollments]
+      operationId: requestEnrollment
+      summary: 수강 신청 요청 접수(대기열 ENROLLMENT 티켓 발급)
+      description: |
+        학생 본인의 수강 신청을 대기열에 접수하고 202를 반환한다. 202는 신청 성공이 아니다. 학생ID는 Access 주체에서만
+        가져오며 본문으로 받지 않는다.
+
+        **접수 단계 판정 순서**(실패하면 티켓 없음): Access(401) → STUDENT(403) → 현재 세션 입장(409 E15) → 본문(400 E09) →
+        과목 존재(404 E04) → 사용자 미완료 티켓 확인과 티켓 생성을 원자적으로(409 E03) → 202. 접수할 때 과목코드를 내부 과목
+        인스턴스에 결합해 대상을 고정한다. 폐강·중복·여석은 접수 단계에서 판정하지 않는다.
+
+        **실행 단계**(대기열 차례): 원래 세션의 유효성·학생 역할·본인 소유(E02)와 입장(E15)을 다시 확인하고, 같은 과목 잠금
+        아래에서 대상 없음(E04, 방어용), 폐강(E05), 이미 신청(E06), 현재 인원 ≥ 정원(E07)을 판정한다. 성공하면 ENROLLED
+        행(`enrollmentType` STUDENT) 생성, 현재 인원 +1, 티켓 결과 OK를 원자적으로 커밋한다. E07은 종결 거절이며 좌석
+        대기명단이나 자동 배정은 없다.
+      x-business-functions:
+        - id: ENR-02-01
+          source: '단위업무기술서.md#enr-02-01'
+        - id: QUE-01-01
+          source: '단위업무기술서.md#que-01-01'
+      security:
+        - accessBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentRequest'
+            examples:
+              enroll:
+                summary: 데이터베이스 신청
+                value:
+                  courseCode: CSE3010
+      responses:
+        '202':
+          description: 수강 신청 접수. 신청 성공을 뜻하지 않는다.
+          headers:
+            Location:
+              $ref: '#/components/headers/TicketLocation'
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/TicketReceipt'
+                  - properties:
+                      requestType:
+                        const: ENROLLMENT
+              examples:
+                accepted:
+                  summary: 신청 접수
+                  value:
+                    ticketId: '1187'
+                    requestType: ENROLLMENT
+                    status: WAITING
+                    submittedAt: '2026-11-10T00:01:00Z'
+                    statusUrl: /api/v1/tickets/1187
+        '400':
+          description: 본문 오류(E09). 티켓을 만들지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidCourseCode:
+                  $ref: '#/components/examples/ProblemE09InvalidCourseCodeBody'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          $ref: '#/components/responses/RoleForbidden'
+        '404':
+          $ref: '#/components/responses/CourseNotFound'
+        '409':
+          description: 화면 미입장(E15) 또는 사용자 미완료 티켓 있음(E03). 티켓을 만들지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                admissionRequired:
+                  $ref: '#/components/examples/ProblemE15AdmissionRequired'
+                ticketPending:
+                  $ref: '#/components/examples/ProblemE03TicketPending'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /me/enrollments/{courseCode}:
+    parameters:
+      - $ref: '#/components/parameters/CourseCodePath'
+    delete:
+      tags: [enrollments]
+      operationId: requestCancellation
+      summary: 수강 취소 요청 접수(대기열 CANCELLATION 티켓 발급)
+      description: |
+        학생 본인의 현재 신청 취소를 대기열에 접수하고 202를 반환한다. 202는 취소 성공이 아니다. 요청 본문은 없다.
+
+        **접수 단계 판정 순서**(실패하면 티켓 없음): Access(401) → STUDENT(403) → 현재 세션 입장(409 E15) → 과목코드 형식·본문
+        없음(400 E09) → 과목 존재(404 E04) → 사용자 미완료 티켓 확인과 티켓 생성을 원자적으로(409 E03) → 202. 본인 신청 유무는
+        접수 단계에서 판정하지 않는다.
+
+        **실행 단계**: 원래 세션의 유효성·학생 역할·본인 소유(E02)와 입장(E15)을 다시 확인하고, 같은 과목 잠금 아래에서 대상
+        없음(E04, 방어용), 폐강(E05), 본인의 현재 ENROLLED 행 없음(E08)을 판정한다. 성공하면 행 삭제, 현재 인원 −1, 티켓 결과
+        OK를 원자적으로 커밋한다.
+        - 관리자 배정(ADMIN) 행도 취소할 수 있고, 현재 인원이 정원보다 많아도 취소할 수 있다.
+        - 취소 후 다시 신청할 수 있으며 그때의 상태로 새로 판정한다.
+        - 취소 이력 행을 남기지 않는다. 과거 성공한 신청 티켓의 결과는 바뀌지 않는다.
+      x-business-functions:
+        - id: ENR-02-02
+          source: '단위업무기술서.md#enr-02-02'
+        - id: QUE-01-01
+          source: '단위업무기술서.md#que-01-01'
+      security:
+        - accessBearer: []
+      responses:
+        '202':
+          description: 수강 취소 접수. 취소 성공을 뜻하지 않는다.
+          headers:
+            Location:
+              $ref: '#/components/headers/TicketLocation'
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/TicketReceipt'
+                  - properties:
+                      requestType:
+                        const: CANCELLATION
+              examples:
+                accepted:
+                  summary: 취소 접수
+                  value:
+                    ticketId: '1301'
+                    requestType: CANCELLATION
+                    status: WAITING
+                    submittedAt: '2026-11-10T00:02:00Z'
+                    statusUrl: /api/v1/tickets/1301
+        '400':
+          description: 과목코드 형식 오류 또는 본문이 있음(E09). 티켓을 만들지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidCourseCode:
+                  $ref: '#/components/examples/ProblemE09InvalidCourseCodePath'
+                bodyNotAllowed:
+                  $ref: '#/components/examples/ProblemE09BodyNotAllowed'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          $ref: '#/components/responses/RoleForbidden'
+        '404':
+          $ref: '#/components/responses/CourseNotFound'
+        '409':
+          description: 화면 미입장(E15) 또는 사용자 미완료 티켓 있음(E03). 티켓을 만들지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                admissionRequired:
+                  $ref: '#/components/examples/ProblemE15AdmissionRequired'
+                ticketPending:
+                  $ref: '#/components/examples/ProblemE03TicketPending'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /professor/courses:
+    get:
+      tags: [professor]
+      operationId: listProfessorCourses
+      summary: 담당 과목 조회(폐강 포함, 페이지 없음)
+      description: |
+        로그인한 교수가 담당하는 모든 과목(CLOSED 포함)을 과목코드 ASCII 오름차순으로 전부 반환한다. 다른 교수의 과목은
+        질의 조건으로 제외한다. 수강생 명단은 제공하지 않으며 `enrolled` 필드도 없다.
+
+        **판정 순서**: Access(401) → PROFESSOR(403) → 쿼리 없음(400 E09) → 200.
+      x-business-functions:
+        - id: CMG-01-01
+          source: '단위업무기술서.md#cmg-01-01'
+      security:
+        - accessBearer: []
+      responses:
+        '200':
+          description: 담당 과목 전체.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseList'
+              examples:
+                own:
+                  summary: 김민수 교수의 담당 과목(폐강 포함)
+                  value:
+                    items:
+                      - courseCode: CSE3010
+                        name: 데이터베이스
+                        category: MAJOR
+                        professorName: 김민수
+                        evaluationType: RELATIVE
+                        capacity: 40
+                        minimumEnrollment: 10
+                        activeEnrollmentCount: 38
+                        remainingSeats: 2
+                        classroom: 공학관 301
+                        status: OPEN
+                      - courseCode: CSE4020
+                        name: 컴파일러
+                        category: MAJOR
+                        professorName: 김민수
+                        evaluationType: ABSOLUTE
+                        capacity: 30
+                        minimumEnrollment: 6
+                        activeEnrollmentCount: 2
+                        remainingSeats: 28
+                        classroom: 공학관 402
+                        status: OPEN
+                      - courseCode: MAJ2001
+                        name: 운영체제
+                        category: MAJOR
+                        professorName: 김민수
+                        evaluationType: RELATIVE
+                        capacity: 35
+                        minimumEnrollment: 8
+                        activeEnrollmentCount: 0
+                        remainingSeats: 35
+                        classroom: 공학관 205
+                        status: CLOSED
+        '400':
+          description: 정의되지 않은 쿼리 파라미터(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                unknownQuery:
+                  $ref: '#/components/examples/ProblemE09UnknownQuery'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          $ref: '#/components/responses/RoleForbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [professor]
+      operationId: createProfessorCourse
+      summary: 과목 등록
+      description: |
+        로그인한 교수를 담당교수로 하는 새 과목을 등록한다. 담당교수는 본문으로 받지 않는다. 새 과목은 OPEN, 현재 인원 0이며
+        새 불변 내부 인스턴스ID를 받는다.
+
+        **판정 순서**: Access(401) → PROFESSOR(403) → 본문(400 E09: 필수·형식·정수 범위·1 ≤ `minimumEnrollment` ≤
+        `capacity`, 정의되지 않은 필드·서버 소유 필드) → 과목코드 중복(409 E10, 폐강 과목 포함 전체) → 201.
+        같은 코드로 동시에 등록하면 유일성 제약으로 하나만 성공하고 나머지는 E10이다. 폐강 과목의 코드도 다시 쓸 수 없다.
+      x-business-functions:
+        - id: CMG-02-01
+          source: '단위업무기술서.md#cmg-02-01'
+      security:
+        - accessBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseCreateRequest'
+            examples:
+              create:
+                summary: 전공 과목 등록
+                value:
+                  courseCode: CSE4510
+                  name: 분산 시스템
+                  category: MAJOR
+                  evaluationType: ABSOLUTE
+                  capacity: 30
+                  minimumEnrollment: 5
+                  classroom: 공학관 410
+      responses:
+        '201':
+          description: 등록된 과목.
+          headers:
+            Location:
+              $ref: '#/components/headers/CourseLocation'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+              examples:
+                created:
+                  summary: 등록 결과
+                  value:
+                    courseCode: CSE4510
+                    name: 분산 시스템
+                    category: MAJOR
+                    professorName: 김민수
+                    evaluationType: ABSOLUTE
+                    capacity: 30
+                    minimumEnrollment: 5
+                    activeEnrollmentCount: 0
+                    remainingSeats: 30
+                    classroom: 공학관 410
+                    status: OPEN
+        '400':
+          description: 본문 오류(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                minimumExceedsCapacity:
+                  $ref: '#/components/examples/ProblemE09MinimumExceedsCapacity'
+                invalidCourseCode:
+                  $ref: '#/components/examples/ProblemE09InvalidCourseCodeBody'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          $ref: '#/components/responses/RoleForbidden'
+        '409':
+          description: 과목코드 중복(E10). 폐강 과목의 코드도 포함한다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                duplicateCode:
+                  $ref: '#/components/examples/ProblemE10DuplicateCourseCode'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /professor/courses/{courseCode}:
+    parameters:
+      - $ref: '#/components/parameters/CourseCodePath'
+    put:
+      tags: [professor]
+      operationId: updateProfessorCourse
+      summary: 담당 과목 정보 수정(수정 가능 6개 필드 전체 교체)
+      description: |
+        경로의 과목코드가 대상이다. 본문에는 수정 가능한 6개 필드(`name`, `category`, `evaluationType`, `capacity`,
+        `minimumEnrollment`, `classroom`)를 모두 보낸다. 과목코드·담당교수·인원·상태 같은 다른 필드는 E09이며 과목코드와
+        담당교수는 바꿀 수 없다.
+
+        **판정 순서**: Access(401) → PROFESSOR(403) → 경로·본문(400 E09, `minimumEnrollment` ≤ `capacity`는 본문 값끼리 비교) →
+        같은 과목 잠금 → 과목 없음(404 E04) → 담당 교수 아님(403 `FORBIDDEN`) → 폐강(409 E05) → `capacity` 값이 기존과
+        다르고 새 `capacity` < 현재 인원(409 E11) → 수정 시각과 함께 커밋 → 200.
+
+        - `capacity`를 바꾸지 않으면 관리자 배정으로 현재 인원이 정원보다 많은 과목도 다른 필드를 수정할 수 있다.
+        - 신청·취소·관리자 배정·폐강과 같은 과목 잠금을 쓰며 이후 대기열 판정은 커밋된 값을 쓴다.
+      x-business-functions:
+        - id: CMG-02-02
+          source: '단위업무기술서.md#cmg-02-02'
+      security:
+        - accessBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseUpdateRequest'
+            examples:
+              changeClassroom:
+                summary: 강의실만 변경(정원 유지)
+                value:
+                  name: 데이터베이스
+                  category: MAJOR
+                  evaluationType: RELATIVE
+                  capacity: 40
+                  minimumEnrollment: 10
+                  classroom: 공학관 305
+      responses:
+        '200':
+          description: 수정된 과목.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+              examples:
+                updated:
+                  summary: 수정 결과
+                  value:
+                    courseCode: CSE3010
+                    name: 데이터베이스
+                    category: MAJOR
+                    professorName: 김민수
+                    evaluationType: RELATIVE
+                    capacity: 40
+                    minimumEnrollment: 10
+                    activeEnrollmentCount: 38
+                    remainingSeats: 2
+                    classroom: 공학관 305
+                    status: OPEN
+        '400':
+          description: 경로·본문 오류(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                serverOwnedField:
+                  $ref: '#/components/examples/ProblemE09ServerOwnedField'
+                minimumExceedsCapacity:
+                  $ref: '#/components/examples/ProblemE09MinimumExceedsCapacity'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          description: 교수 역할 아님 또는 본인 담당 과목 아님(E02 `FORBIDDEN`).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                roleForbidden:
+                  $ref: '#/components/examples/ProblemE02Forbidden'
+                notOwner:
+                  $ref: '#/components/examples/ProblemE02NotCourseOwner'
+        '404':
+          $ref: '#/components/responses/CourseNotFound'
+        '409':
+          description: 폐강 과목(E05) 또는 변경한 정원이 현재 인원보다 작음(E11).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                closed:
+                  $ref: '#/components/examples/ProblemE05CourseClosed'
+                capacityBelowActive:
+                  $ref: '#/components/examples/ProblemE11CapacityBelowActive'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /professor/courses/{courseCode}/closure:
+    parameters:
+      - $ref: '#/components/parameters/CourseCodePath'
+    post:
+      tags: [professor]
+      operationId: closeProfessorCourse
+      summary: 담당 과목 폐강(물리 삭제 없음)
+      description: |
+        교수의 과목 삭제를 대체하는 폐강이다. 물리 삭제와 과목코드 재사용은 없다. 요청 본문(확인 여부 필드 포함)은 없으며
+        확인 절차는 화면의 몫이다.
+
+        **판정 순서**: Access(401) → PROFESSOR(403) → 경로·본문 없음(400 E09) → 같은 과목 잠금 → 과목 없음(404 E04) → 담당 교수
+        아님(403 `FORBIDDEN`) → "OPEN이고 현재 인원 < 최소 수강인원"이 아니면 409 E14(이미 폐강된 과목과 반복 요청 포함,
+        멱등 성공 아님) → 200.
+
+        **효과**(한 트랜잭션): 과목을 CLOSED로, 이 과목의 ENROLLED 행 전부를 CLOSED로 보존, 현재 인원을 0으로. 신청 행이
+        있어도 조건을 만족하면 폐강한다. 조건 외의 임의 강제 폐강은 없다.
+
+        **이후**: 이 과목을 대상으로 대기 중인 신청·취소는 실행 시 E05, 이미 확정된 티켓 결과는 그대로다. 과목은 검색에 CLOSED로
+        남고 학생의 현재 신청 목록에서는 빠진다. 수정과 관리자 배정은 E05이고 폐강 되돌리기는 없다.
+      x-business-functions:
+        - id: CMG-02-03
+          source: '단위업무기술서.md#cmg-02-03'
+      security:
+        - accessBearer: []
+      responses:
+        '200':
+          description: 폐강 결과.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseClosureResult'
+              examples:
+                closed:
+                  summary: 신청 2건이 있는 최소 인원 미달 과목 폐강
+                  value:
+                    course:
+                      courseCode: CSE4020
+                      name: 컴파일러
+                      category: MAJOR
+                      professorName: 김민수
+                      evaluationType: ABSOLUTE
+                      capacity: 30
+                      minimumEnrollment: 6
+                      activeEnrollmentCount: 0
+                      remainingSeats: 30
+                      classroom: 공학관 402
+                      status: CLOSED
+                    closedEnrollmentCount: 2
+        '400':
+          description: 과목코드 형식 오류 또는 본문이 있음(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidCourseCode:
+                  $ref: '#/components/examples/ProblemE09InvalidCourseCodePath'
+                bodyNotAllowed:
+                  $ref: '#/components/examples/ProblemE09BodyNotAllowed'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          description: 교수 역할 아님 또는 본인 담당 과목 아님(E02 `FORBIDDEN`).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                roleForbidden:
+                  $ref: '#/components/examples/ProblemE02Forbidden'
+                notOwner:
+                  $ref: '#/components/examples/ProblemE02NotCourseOwner'
+        '404':
+          $ref: '#/components/responses/CourseNotFound'
+        '409':
+          description: 폐강 대상 아님(E14). 이미 폐강된 과목과 반복 요청을 포함한다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                notCandidate:
+                  $ref: '#/components/examples/ProblemE14NotClosureCandidate'
+                alreadyClosed:
+                  $ref: '#/components/examples/ProblemE14AlreadyClosed'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /admin/enrollments:
+    post:
+      tags: [admin]
+      operationId: createAdminEnrollment
+      summary: 관리자 수강 배정(정원 검사만 생략)
+      description: |
+        관리자가 학번을 정확히 입력해 학생을 과목에 직접 배정한다. 학생 검색 연산은 없다. 공통 대기열·N 슬롯·학생의 미완료
+        티켓 제한을 거치지 않으며 대기 중인 학생 요청과의 전역 순서·공정성은 보장하지 않는다. 같은 과목 잠금은 쓴다. 정원
+        검사만 생략하므로 현재 인원이 정원을 넘을 수 있다.
+
+        **판정 순서**: Access(401) → ADMIN(403) → 본문(400 E09) → 같은 과목 잠금과 `studentId` 확인(없거나 학생이 아니면 422
+        E13) → 과목 없음(404 E04) → 폐강(409 E05) → 이미 신청(409 E06) → ENROLLED 행(`enrollmentType` ADMIN, 배정 관리자
+        기록) 생성과 현재 인원 +1을 원자적으로 커밋 → 201.
+
+        배정 이후 그 학생의 같은 과목 대기 신청은 실행 시 E06이 된다. 배정 행은 학생이 취소할 수 있다.
+      x-business-functions:
+        - id: ADM-01-01
+          source: '단위업무기술서.md#adm-01-01'
+      security:
+        - accessBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminEnrollmentRequest'
+            examples:
+              assign:
+                summary: 정원이 찬 과목에 학생 배정
+                value:
+                  studentId: '20260002'
+                  courseCode: GEN1001
+      responses:
+        '201':
+          description: 배정 결과.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminEnrollmentResult'
+              examples:
+                overCapacity:
+                  summary: 정원 30명 과목에 31번째로 배정
+                  value:
+                    studentId: '20260002'
+                    courseCode: GEN1001
+                    enrollmentType: ADMIN
+                    status: ENROLLED
+                    enrolledAt: '2026-11-10T00:02:30Z'
+                    activeEnrollmentCount: 31
+                    capacity: 30
+                    overCapacity: true
+        '400':
+          description: 본문 오류(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidCourseCode:
+                  $ref: '#/components/examples/ProblemE09InvalidCourseCodeBody'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          $ref: '#/components/responses/RoleForbidden'
+        '404':
+          $ref: '#/components/responses/CourseNotFound'
+        '409':
+          description: 폐강 과목(E05) 또는 이미 신청한 과목(E06).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                closed:
+                  $ref: '#/components/examples/ProblemE05CourseClosed'
+                alreadyEnrolled:
+                  $ref: '#/components/examples/ProblemE06AlreadyEnrolled'
+        '422':
+          description: 지정한 사용자가 없거나 학생이 아님(E13).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                notStudent:
+                  $ref: '#/components/examples/ProblemE13NotStudent'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /admin/settings:
+    get:
+      tags: [admin]
+      operationId: getServiceSettings
+      summary: 서비스 설정(동시 처리 수 N)과 슬롯 현황 조회
+      description: |
+        동시 처리 수 N과 조회 시점의 슬롯·대기 현황 스냅샷을 반환한다. 실시간 값을 보장하지 않는다.
+
+        **판정 순서**: Access(401) → ADMIN(403) → 쿼리 없음(400 E09) → 200.
+      x-business-functions:
+        - id: ADM-02-01
+          source: '단위업무기술서.md#adm-02-01'
+      security:
+        - accessBearer: []
+      responses:
+        '200':
+          description: 설정과 현황.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceSettings'
+              examples:
+                initial:
+                  summary: 초기 시드 상태(변경 이력 없음)
+                  value:
+                    concurrencyLimit: 100
+                    activeSlots: 37
+                    availableSlots: 63
+                    waitingCount: 512
+                    lastChangedBy: null
+                    lastChangedAt: null
+        '400':
+          description: 정의되지 않은 쿼리 파라미터(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                unknownQuery:
+                  $ref: '#/components/examples/ProblemE09UnknownQuery'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          $ref: '#/components/responses/RoleForbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [admin]
+      operationId: updateServiceSettings
+      summary: 동시 처리 수 N 변경
+      description: |
+        `concurrencyLimit`만 받는다(정수 1~1,000). claim·예약·반납·안전 회수와 같은 원자적 슬롯 회계 안에서 새 N, 변경자,
+        변경 시각을 확정하고 이후 새 claim부터 적용한다.
+
+        - 낮추어도 진행 중인 업무 트랜잭션을 중단하지 않고 배출한다. 그동안 `activeSlots`가 새 N보다 클 수 있고
+          `availableSlots`는 0이다. 선행 티켓 재배정을 막는 후속 차례 대기 작업은 서버가 안전하게 대기로 돌리고 원래 순서로
+          다시 공개한다(내부 처리, API 필드 없음).
+        - 높이면 원자적 claim이 늘어난 여유만큼 배정할 수 있다.
+        - 값이 현재와 같으면 아무것도 바꾸지 않고(변경자·시각 유지) 현재 상태로 200을 반환한다.
+
+        **판정 순서**: Access(401) → ADMIN(403) → 본문(400 E09) → 200.
+      x-business-functions:
+        - id: ADM-02-01
+          source: '단위업무기술서.md#adm-02-01'
+      security:
+        - accessBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceSettingsUpdateRequest'
+            examples:
+              lower:
+                summary: N을 20으로 낮춤
+                value:
+                  concurrencyLimit: 20
+      responses:
+        '200':
+          description: 변경 후 설정과 현황.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceSettings'
+              examples:
+                lowered:
+                  summary: 하향 직후(활성 슬롯이 새 N보다 많아 배출 중)
+                  value:
+                    concurrencyLimit: 20
+                    activeSlots: 37
+                    availableSlots: 0
+                    waitingCount: 512
+                    lastChangedBy: admin01
+                    lastChangedAt: '2026-11-10T00:05:00Z'
+        '400':
+          description: 본문 오류(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                outOfRange:
+                  $ref: '#/components/examples/ProblemE09ConcurrencyLimitRange'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          $ref: '#/components/responses/RoleForbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /admin/closure-candidates:
+    get:
+      tags: [admin]
+      operationId: listClosureCandidates
+      summary: 폐강 대상 조회(개설·최소 인원 미달, 20건 페이지)
+      description: |
+        "OPEN이고 현재 인원 < 최소 수강인원"인 과목을 과목코드 ASCII 오름차순으로 페이지당 20건씩 반환한다. 조회 시점의 참고
+        스냅샷이며 폐강 처리 때 다시 확인한다.
+
+        **판정 순서**: Access(401) → ADMIN(403) → 쿼리(400 E09) → 200.
+      x-business-functions:
+        - id: ADM-03-01
+          source: '단위업무기술서.md#adm-03-01'
+      security:
+        - accessBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+      responses:
+        '200':
+          description: 폐강 대상 페이지.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClosureCandidatePage'
+              examples:
+                candidates:
+                  summary: 폐강 대상 2건
+                  value:
+                    items:
+                      - courseCode: CSE4020
+                        name: 컴파일러
+                        professorName: 김민수
+                        activeEnrollmentCount: 2
+                        minimumEnrollment: 6
+                        capacity: 30
+                      - courseCode: HIS1002
+                        name: 한국사의 이해
+                        professorName: 박서연
+                        activeEnrollmentCount: 3
+                        minimumEnrollment: 5
+                        capacity: 40
+                    page: 1
+                    pageSize: 20
+                    totalItems: 2
+                    totalPages: 1
+        '400':
+          description: 쿼리 오류(E09).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidPage:
+                  $ref: '#/components/examples/ProblemE09InvalidPage'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          $ref: '#/components/responses/RoleForbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /admin/course-closures:
+    post:
+      tags: [admin]
+      operationId: closeCourses
+      summary: 과목 일괄 폐강(과목별 트랜잭션, 과목별 결과)
+      description: |
+        요청 순서대로 과목마다 **별도 트랜잭션**으로 처리하고 HTTP 200과 입력 순서의 과목별 결과를 반환한다. 전체가
+        실패해도 200이며, 앞서 성공한 과목은 되돌리지 않는다(전체 롤백 없음). 일괄 최대 개수는 정하지 않는다.
+
+        **요청 단계 판정 순서**(실패하면 어떤 과목도 처리하지 않음): Access(401) → ADMIN(403) → 본문(400 E09: 빈 배열, 중복
+        과목코드, 형식 오류, 정의되지 않은 필드).
+
+        **과목별 판정**: 관리자 권한 재확인 → 같은 과목 잠금 → 과목 없음(E04) → "OPEN이고 현재 인원 < 최소 수강인원"이
+        아님(E14, 이미 폐강 포함) → 폐강 → OK. 처리 도중 관리자 세션이 무효가 되면 그 과목부터 남은 항목은 변경 없이 E02다.
+
+        **효과**는 교수의 담당 과목 폐강과 같다: 과목 CLOSED, 해당 ENROLLED 행 CLOSED로 보존, 현재 인원 0. 대기 중인 신청·취소는
+        실행 시 E05이고 이미 확정된 티켓 결과는 바뀌지 않는다. 자동 폐강, 강제 폐강, 폐강 되돌리기는 없다.
+      x-business-functions:
+        - id: ADM-03-02
+          source: '단위업무기술서.md#adm-03-02'
+      security:
+        - accessBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseClosureBatchRequest'
+            examples:
+              batch:
+                summary: 3개 과목 일괄 폐강
+                value:
+                  courseCodes: [HIS1002, CSE4020, NOP0000]
+      responses:
+        '200':
+          description: 입력 순서의 과목별 결과. 일부 또는 전부 실패해도 200이다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseClosureBatchResult'
+              examples:
+                mixed:
+                  summary: 성공·이미 폐강(교수가 먼저 폐강)·과목 없음
+                  value:
+                    items:
+                      - courseCode: HIS1002
+                        code: OK
+                        closedEnrollmentCount: 3
+                      - courseCode: CSE4020
+                        code: E14
+                        closedEnrollmentCount: null
+                      - courseCode: NOP0000
+                        code: E04
+                        closedEnrollmentCount: null
+                authorizationLost:
+                  summary: 처리 도중 관리자 세션이 폐기됨(앞선 성공 유지)
+                  value:
+                    items:
+                      - courseCode: HIS1002
+                        code: OK
+                        closedEnrollmentCount: 3
+                      - courseCode: CSE4020
+                        code: E02
+                        closedEnrollmentCount: null
+                      - courseCode: NOP0000
+                        code: E02
+                        closedEnrollmentCount: null
+        '400':
+          description: 본문 오류(E09). 어떤 과목도 처리하지 않는다.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                emptyList:
+                  $ref: '#/components/examples/ProblemE09EmptyCourseCodes'
+                duplicateCodes:
+                  $ref: '#/components/examples/ProblemE09DuplicateCourseCodes'
+        '401':
+          $ref: '#/components/responses/AccessUnauthorized'
+        '403':
+          $ref: '#/components/responses/RoleForbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  securitySchemes:
+    accessBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Access JWT. `Authorization: Bearer <token>`으로 보낸다. 최대 15분이며 세션 만료를 넘지 않는다. 프런트엔드 JS
+        메모리에만 둔다. 필수 클레임 `sub`, `sid`, `role`, `iss`, `aud`, `iat`, `exp`. 서버는 서명·발급자·대상·시간을 검증한
+        뒤 서버 세션(ACTIVE·만료 전)·사용자·역할을 권위로 확인한다. 역할·소유권·입장 검사(AUT-03-01)는 연산마다 서버가
+        수행한다.
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-crs_refresh
+      description: |
+        불투명 난수 Refresh 토큰. `Secure; HttpOnly; SameSite=Lax; Path=/`, Domain 없음. 서버는 해시만 보존하고 사용할 때마다
+        회전한다. `Max-Age`는 세션 절대 만료(로그인 후 7일, 비연장)를 넘지 않는다. 이 쿠키를 쓰는 요청은 Origin 정확 일치와
+        `X-CSRF-Protection: 1`이 필요하다.
+    loginProofCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-crs_login
+      description: |
+        로그인 접수 때 발급하는 익명 소유 증명. 600초 동안 유효하며 원래 익명 컨텍스트의 LOGIN 티켓 조회와 최초 토큰 수령에만
+        쓴다. 서버는 검증용 다이제스트만 보존한다. 인증 세션이나 Access로 대체하지 않는다.
+  parameters:
+    TicketIdPath:
+      name: ticketId
+      in: path
+      required: true
+      description: 티켓 번호(양의 10진수 문자열). 형식 위반은 400 E09다.
+      schema:
+        $ref: '#/components/schemas/TicketId'
+    CourseCodePath:
+      name: courseCode
+      in: path
+      required: true
+      description: 과목코드(ASCII 영문자·숫자 1~10자, 대소문자 구분). 형식 위반은 400 E09다.
+      schema:
+        $ref: '#/components/schemas/CourseCode'
+    PageQuery:
+      name: page
+      in: query
+      required: false
+      description: 페이지 번호(1부터). 페이지 크기는 20 고정이다. 1 미만·정수 아님은 400 E09다.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    CategoryQuery:
+      name: category
+      in: query
+      required: false
+      description: 이수구분 필터. 생략하면 ALL이다.
+      schema:
+        $ref: '#/components/schemas/CourseCategoryFilter'
+    SearchQuery:
+      name: q
+      in: query
+      required: false
+      description: |
+        검색어. 과목명·과목코드·담당교수 이름 중 하나라도 `q`를 부분 문자열로 포함하면 일치한다(OR).
+        - 리터럴 비교다. 와일드카드·정규식으로 해석하지 않으며 `%`, `_`도 글자 그대로 찾는다.
+        - ASCII 영문자 A–Z만 대소문자를 구분하지 않는다. 그 밖의 문자는 그대로 비교하며 공백 trim·유니코드 정규화는 하지 않는다.
+        - 생략하거나 빈 문자열이면 검색어 조건을 적용하지 않는다.
+      schema:
+        type: string
+    OriginHeader:
+      name: Origin
+      in: header
+      required: true
+      description: |
+        브라우저가 자동으로 넣는 요청 출처. 설정된 프런트엔드 출처(예: `https://app.example.com`)와 정확히 같아야 한다. 없거나
+        다르면 400이 아니라 403 E02 `CSRF_CHECK_FAILED`이며 상태를 바꾸지 않는다.
+      schema:
+        type: string
+        format: uri
+      example: https://app.example.com
+    CsrfProtectionHeader:
+      name: X-CSRF-Protection
+      in: header
+      required: true
+      description: |
+        CSRF 방어용 사용자 정의 헤더. 값은 `1`이다. 인증 비밀이 아니라 교차 출처 단순 요청을 사전 요청으로 바꾸기 위한
+        장치다. 없거나 값이 다르면 400이 아니라 403 E02 `CSRF_CHECK_FAILED`이며 상태를 바꾸지 않는다.
+      schema:
+        type: string
+        const: '1'
+      example: '1'
+  headers:
+    CacheControlNoStore:
+      description: 사용자별·자격 증명 관련 응답의 캐시 금지.
+      required: true
+      schema:
+        type: string
+        const: no-store
+    TicketLocation:
+      description: 새 티켓의 상태 조회 경로. 본문의 `statusUrl`과 같다.
+      required: true
+      schema:
+        type: string
+        format: uri-reference
+      example: /api/v1/tickets/1001
+    CourseLocation:
+      description: 등록된 과목의 조회 경로(`GET /courses/{courseCode}`).
+      required: true
+      schema:
+        type: string
+        format: uri-reference
+      example: /api/v1/courses/CSE4510
+    RetryAfter:
+      description: 권장 폴링 간격(초). 이 초안의 값은 2다.
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      example: 2
+    SetLoginProofCookie:
+      description: |
+        익명 소유 증명 쿠키 발급. `__Host-crs_login=<불투명 값>; Max-Age=600; Path=/; Secure; HttpOnly; SameSite=Lax`.
+        Domain 속성은 없다. 값은 응답 본문·로그에 나타나지 않는다.
+      required: true
+      schema:
+        type: string
+      example: '__Host-crs_login=example-login-proof; Max-Age=600; Path=/; Secure; HttpOnly; SameSite=Lax'
+    SetRefreshCookie:
+      description: |
+        Refresh 쿠키 발급·회전. `__Host-crs_refresh=<불투명 값>; Max-Age=<초>; Path=/; Secure; HttpOnly; SameSite=Lax`.
+        `Max-Age`는 세션 `expiresAt`까지 남은 초(내림)이며 넘지 않는다. Domain 속성은 없다.
+      required: true
+      schema:
+        type: string
+      example: '__Host-crs_refresh=example-opaque-refresh; Max-Age=604799; Path=/; Secure; HttpOnly; SameSite=Lax'
+    ClearRefreshCookie:
+      description: 사용할 수 없는 Refresh 쿠키 삭제.
+      required: true
+      schema:
+        type: string
+      example: '__Host-crs_refresh=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=Lax'
+    ClearAuthCookies:
+      description: |
+        `Set-Cookie` 헤더 두 개로 `__Host-crs_refresh`와 `__Host-crs_login`을 모두 삭제한다. 각각
+        `<이름>=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=Lax` 형식이다.
+      required: true
+      schema:
+        type: string
+      example: '__Host-crs_refresh=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=Lax'
+    WwwAuthenticateBearer:
+      description: Bearer 인증 실패 안내(RFC 6750). Access가 없으면 `Bearer`, 무효·만료면 `error="invalid_token"`을 붙인다.
+      required: true
+      schema:
+        type: string
+      example: Bearer error="invalid_token"
+  responses:
+    AccessUnauthorized:
+      description: |
+        Access 인증 실패(401 E02). Access가 없거나 형식·서명·발급자·대상이 맞지 않으면 `reason`이 없고, 만료면
+        `ACCESS_TOKEN_EXPIRED`, 세션이 폐기·만료되었으면 `SESSION_REVOKED`·`SESSION_EXPIRED`다.
+      headers:
+        WWW-Authenticate:
+          $ref: '#/components/headers/WwwAuthenticateBearer'
+        Cache-Control:
+          $ref: '#/components/headers/CacheControlNoStore'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            accessMissing:
+              $ref: '#/components/examples/ProblemE02AccessMissing'
+            accessExpired:
+              $ref: '#/components/examples/ProblemE02AccessExpired'
+            sessionRevoked:
+              $ref: '#/components/examples/ProblemE02SessionRevoked'
+            sessionExpired:
+              $ref: '#/components/examples/ProblemE02SessionExpired'
+    RoleForbidden:
+      description: 역할이 이 연산을 허용하지 않음(403 E02 `FORBIDDEN`).
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControlNoStore'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            forbidden:
+              $ref: '#/components/examples/ProblemE02Forbidden'
+    CsrfRejected:
+      description: Origin 또는 `X-CSRF-Protection` 검사 실패(403 E02 `CSRF_CHECK_FAILED`). 어떤 상태도 바꾸지 않는다.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControlNoStore'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            csrfFailed:
+              $ref: '#/components/examples/ProblemE02CsrfFailed'
+    CourseNotFound:
+      description: 과목코드에 해당하는 과목 없음(404 E04).
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControlNoStore'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            notFound:
+              $ref: '#/components/examples/ProblemE04CourseNotFound'
+    AdmissionRequired:
+      description: 학생의 현재 세션이 수강신청 화면에 입장하지 않음(409 E15). `POST /admission`으로 입장한다.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControlNoStore'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            admissionRequired:
+              $ref: '#/components/examples/ProblemE15AdmissionRequired'
+    InternalError:
+      description: 기술 오류(500 `INTERNAL_ERROR`). 업무 결과 코드가 아니며 E99와 다르다. 내부 정보를 노출하지 않는다.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControlNoStore'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            internalError:
+              $ref: '#/components/examples/ProblemInternalError'
+  schemas:
+    UserId:
+      type: string
+      minLength: 1
+      description: 사용자ID(학생은 학번). 비어 있지 않은 문자열이며 정규화 없이 정확히 비교한다.
+      examples: ['20260001']
+    TicketId:
+      type: string
+      pattern: '^[1-9][0-9]*$'
+      description: 서버가 부여한 티켓 번호(서버 접수 순번). JavaScript 정수 정밀도 문제를 피하려고 양의 10진수 문자열로 전달한다.
+      examples: ['1001']
+    CourseCode:
+      type: string
+      pattern: '^[A-Za-z0-9]{1,10}$'
+      description: |
+        과목코드. ASCII 영문자·숫자 1~10자이며 대소문자를 구분해 정확히 일치시킨다. 등록 후 바꿀 수 없고 폐강 과목을 포함한
+        전체 과목에서 유일하며 재사용하지 않는다. 서버 내부의 불변 과목 인스턴스ID는 API에 노출하거나 입력받지 않는다.
+      examples: [CSE3010]
+    UserRole:
+      type: string
+      enum: [STUDENT, PROFESSOR, ADMIN]
+      description: 사용자 역할(학생·교수·관리자). 서버 사용자 정보가 권위다.
+    CourseCategory:
+      type: string
+      enum: [GENERAL, MAJOR]
+      description: 이수구분. GENERAL은 교양, MAJOR는 전공이다.
+    CourseCategoryFilter:
+      type: string
+      enum: [ALL, GENERAL, MAJOR]
+      default: ALL
+      description: 과목 검색의 이수구분 필터. ALL은 필터 없음이다.
+    EvaluationType:
+      type: string
+      enum: [RELATIVE, ABSOLUTE, PASS_FAIL]
+      description: 평가유형. RELATIVE는 상대평가, ABSOLUTE는 절대평가, PASS_FAIL은 P/F다.
+    CourseStatus:
+      type: string
+      enum: [OPEN, CLOSED]
+      description: 과목 상태. OPEN은 개설, CLOSED는 폐강이다. 폐강을 되돌리는 연산은 없다.
+    EnrollmentStatus:
+      type: string
+      enum: [ENROLLED, CLOSED]
+      description: 수강신청 행 상태. ENROLLED는 신청, CLOSED는 폐강으로 보존된 행이다. 취소는 상태가 아니라 행 삭제다.
+    EnrollmentType:
+      type: string
+      enum: [STUDENT, ADMIN]
+      description: 신청 구분. STUDENT는 학생 신청(대기열), ADMIN은 관리자 배정이다.
+    TicketRequestType:
+      type: string
+      enum: [LOGIN, ADMISSION, ENROLLMENT, CANCELLATION]
+      description: 대기열 요청 유형. 로그인·화면 진입·수강 신청·수강 취소 4가지뿐이다.
+    TicketStatus:
+      type: string
+      enum: [RECEIVED, WAITING, PROCESSING, SUCCEEDED, REJECTED]
+      description: 티켓 상태. RECEIVED·WAITING·PROCESSING은 미완료, SUCCEEDED·REJECTED는 종결이다.
+    TicketReceiptStatus:
+      type: string
+      enum: [RECEIVED, WAITING]
+      description: 접수 확정 시점의 상태 스냅샷. 이후 상태를 보장하지 않는다.
+    TicketResultCode:
+      type: string
+      enum: [OK, E01, E02, E04, E05, E06, E07, E08, E15, E99]
+      description: |
+        티켓 종결 결과 코드. 유형별 허용 값은 `Ticket` 스키마 조건과 같다. E07은 여석 없음으로 끝난 종결 거절이며 좌석
+        대기명단이 아니다. E99는 안전한 소유권 회수 후 재투입 한도 소진이다.
+    ProblemCode:
+      type: string
+      enum: [E01, E02, E03, E04, E05, E06, E09, E10, E11, E13, E14, E15, INTERNAL_ERROR]
+      description: HTTP 오류 응답의 코드. E07·E08·E99는 티켓 결과로만 쓰므로 포함하지 않는다.
+    AuthFailureReason:
+      type: string
+      enum:
+        - ACCESS_TOKEN_EXPIRED
+        - SESSION_REVOKED
+        - SESSION_EXPIRED
+        - REFRESH_TOKEN_INVALID
+        - REFRESH_TOKEN_REUSED
+        - LOGIN_PROOF_INVALID
+        - LOGIN_PROOF_EXPIRED
+        - LOGIN_EXCHANGE_CONSUMED
+        - CSRF_CHECK_FAILED
+        - FORBIDDEN
+      description: E02의 세부 사유. 앞의 5개는 401, 뒤의 5개는 403과 함께 쓴다. Access 없음·형식 오류의 401에는 사유가 없다.
+    CourseClosureItemCode:
+      type: string
+      enum: [OK, E02, E04, E14]
+      description: 일괄 폐강의 과목별 결과 코드.
+    StatusUrl:
+      type: string
+      format: uri-reference
+      pattern: '^/api/v1/tickets/[1-9][0-9]*$'
+      description: 티켓 상태 조회 경로(`Location` 헤더와 같음).
+      examples: [/api/v1/tickets/1001]
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [userId, password]
+      properties:
+        userId:
+          $ref: '#/components/schemas/UserId'
+        password:
+          type: string
+          minLength: 1
+          format: password
+          writeOnly: true
+          description: |
+            입력 비밀번호 원문. 접수 후 최대 5분 동안 서버 메모리의 단기 요청 컨텍스트에만 두고, 차례가 되면 ENT-01의 영구
+            비밀번호 해시와 비교한 직후 폐기한다. DB·티켓·이력·로그·오류 응답에 저장하거나 되풀이하지 않는다. 정규화하지
+            않는다.
+    LoginTicketReceipt:
+      type: object
+      description: LOGIN 티켓 접수증. 자격 증명·토큰·소유 증명 값을 담지 않는다(소유 증명은 쿠키로만 전달).
+      additionalProperties: false
+      required: [ticketId, requestType, status, submittedAt, statusUrl, credentialExpiresAt, proofExpiresAt]
+      properties:
+        ticketId:
+          $ref: '#/components/schemas/TicketId'
+        requestType:
+          $ref: '#/components/schemas/TicketRequestType'
+          const: LOGIN
+        status:
+          $ref: '#/components/schemas/TicketReceiptStatus'
+        submittedAt:
+          type: string
+          format: date-time
+          description: 서버 접수 시각.
+        statusUrl:
+          $ref: '#/components/schemas/StatusUrl'
+        credentialExpiresAt:
+          type: string
+          format: date-time
+          description: 단기 자격 증명 컨텍스트 만료 시각(`submittedAt` + 5분). 그 전에 검증하지 못하면 결과는 E01이다.
+        proofExpiresAt:
+          type: string
+          format: date-time
+          description: 익명 소유 증명 만료 시각(`submittedAt` + 10분). 이후에는 조회·토큰 수령을 할 수 없다.
+    TicketReceipt:
+      type: object
+      description: 인증 후 대기열 요청(ADMISSION·ENROLLMENT·CANCELLATION)의 접수증. 202는 업무 성공이 아니다.
+      additionalProperties: false
+      required: [ticketId, requestType, status, submittedAt, statusUrl]
+      properties:
+        ticketId:
+          $ref: '#/components/schemas/TicketId'
+        requestType:
+          type: string
+          enum: [ADMISSION, ENROLLMENT, CANCELLATION]
+        status:
+          $ref: '#/components/schemas/TicketReceiptStatus'
+        submittedAt:
+          type: string
+          format: date-time
+          description: 서버 접수 시각.
+        statusUrl:
+          $ref: '#/components/schemas/StatusUrl'
+    AdmissionState:
+      type: object
+      description: 이미 입장한 세션의 입장 상태.
+      additionalProperties: false
+      required: [admittedAt]
+      properties:
+        admittedAt:
+          type: string
+          format: date-time
+          description: 현재 세션의 화면 입장 시각.
+    TicketResult:
+      type: object
+      description: 불변 종결 결과. 현재 여석·신청 목록·자격 증명을 담지 않는다.
+      additionalProperties: false
+      required: [code, completedAt]
+      properties:
+        code:
+          $ref: '#/components/schemas/TicketResultCode'
+        completedAt:
+          type: string
+          format: date-time
+          description: 결과 확정 시각.
+    Ticket:
+      type: object
+      description: 본인 티켓의 상태 보기. 처리기·리스·슬롯·세션 참조 같은 내부 값과 토큰을 담지 않는다.
+      additionalProperties: false
+      required: [ticketId, requestType, courseCode, submittedAt, status, queuePosition, result]
+      properties:
+        ticketId:
+          $ref: '#/components/schemas/TicketId'
+        requestType:
+          $ref: '#/components/schemas/TicketRequestType'
+        courseCode:
+          description: ENROLLMENT·CANCELLATION의 대상 과목코드(접수 시 고정). LOGIN·ADMISSION은 null이다.
+          oneOf:
+            - $ref: '#/components/schemas/CourseCode'
+            - type: 'null'
+        submittedAt:
+          type: string
+          format: date-time
+          description: 서버 접수 시각.
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        queuePosition:
+          type: [integer, 'null']
+          minimum: 1
+          description: WAITING일 때만 값이 있다. 앞선 WAITING 티켓 수 + 1인 참고 순번이며 소요 시간·완료 순서가 아니다.
+        result:
+          description: 종결(SUCCEEDED·REJECTED)일 때만 값이 있다. 확정 후 바뀌지 않는다.
+          oneOf:
+            - $ref: '#/components/schemas/TicketResult'
+            - type: 'null'
+      allOf:
+        - if:
+            properties:
+              requestType:
+                enum: [ENROLLMENT, CANCELLATION]
+          then:
+            properties:
+              courseCode:
+                $ref: '#/components/schemas/CourseCode'
+          else:
+            properties:
+              courseCode:
+                type: 'null'
+        - if:
+            properties:
+              status:
+                const: WAITING
+          then:
+            properties:
+              queuePosition:
+                type: integer
+          else:
+            properties:
+              queuePosition:
+                type: 'null'
+        - if:
+            properties:
+              status:
+                enum: [SUCCEEDED, REJECTED]
+          then:
+            properties:
+              result:
+                $ref: '#/components/schemas/TicketResult'
+          else:
+            properties:
+              result:
+                type: 'null'
+        - if:
+            properties:
+              status:
+                const: SUCCEEDED
+          then:
+            properties:
+              result:
+                properties:
+                  code:
+                    const: OK
+        - if:
+            properties:
+              status:
+                const: REJECTED
+          then:
+            properties:
+              result:
+                properties:
+                  code:
+                    not:
+                      const: OK
+        - if:
+            properties:
+              requestType:
+                const: LOGIN
+          then:
+            properties:
+              result:
+                properties:
+                  code:
+                    enum: [OK, E01, E99]
+        - if:
+            properties:
+              requestType:
+                const: ADMISSION
+          then:
+            properties:
+              result:
+                properties:
+                  code:
+                    enum: [OK, E02, E99]
+        - if:
+            properties:
+              requestType:
+                const: ENROLLMENT
+          then:
+            properties:
+              result:
+                properties:
+                  code:
+                    enum: [OK, E02, E04, E05, E06, E07, E15, E99]
+        - if:
+            properties:
+              requestType:
+                const: CANCELLATION
+          then:
+            properties:
+              result:
+                properties:
+                  code:
+                    enum: [OK, E02, E04, E05, E08, E15, E99]
+    AuthenticatedUser:
+      type: object
+      description: 토큰 주체 사용자. 서버 사용자 정보에서 읽는다.
+      additionalProperties: false
+      required: [userId, name, role]
+      properties:
+        userId:
+          $ref: '#/components/schemas/UserId'
+        name:
+          type: string
+          minLength: 1
+          description: 사용자 이름.
+        role:
+          $ref: '#/components/schemas/UserRole'
+    SessionState:
+      type: object
+      description: 토큰이 속한 서버 세션의 현재 상태. 세션ID와 내부 상태 값은 노출하지 않는다.
+      additionalProperties: false
+      required: [expiresAt, admittedAt]
+      properties:
+        expiresAt:
+          type: string
+          format: date-time
+          description: 세션 절대 만료 시각(로그인 성공 시각 + 7일, 갱신해도 연장되지 않음).
+        admittedAt:
+          type: [string, 'null']
+          format: date-time
+          description: 이 세션의 수강신청 화면 입장 시각. 미입장 학생과 교수·관리자는 null이다.
+    TokenResponse:
+      type: object
+      description: Access 발급 응답(최초 수령·갱신 공통). Refresh는 본문이 아니라 `Set-Cookie`로만 전달한다.
+      additionalProperties: false
+      required: [accessToken, tokenType, expiresIn, user, session]
+      properties:
+        accessToken:
+          type: string
+          minLength: 1
+          description: Access JWT. JS 메모리에만 보관하고 웹 저장소·BroadcastChannel·로그에 넣지 않는다.
+        tokenType:
+          type: string
+          const: Bearer
+        expiresIn:
+          type: integer
+          minimum: 1
+          maximum: 900
+          description: Access 남은 유효 시간(초). 최대 900이며 세션 만료까지 남은 시간을 넘지 않는다.
+        user:
+          $ref: '#/components/schemas/AuthenticatedUser'
+        session:
+          $ref: '#/components/schemas/SessionState'
+      allOf:
+        - if:
+            properties:
+              user:
+                properties:
+                  role:
+                    not:
+                      const: STUDENT
+          then:
+            properties:
+              session:
+                properties:
+                  admittedAt:
+                    type: 'null'
+    Course:
+      type: object
+      description: |
+        과목 보기. `remainingSeats` = max(`capacity` − `activeEnrollmentCount`, 0)이다. 관리자 배정으로
+        `activeEnrollmentCount`가 `capacity`를 넘을 수 있다. CLOSED 과목은 계산된 여석과 무관하게 신청·취소할 수 없다.
+        `enrolled`는 학생 호출에만 포함한다.
+      additionalProperties: false
+      required:
+        - courseCode
+        - name
+        - category
+        - professorName
+        - evaluationType
+        - capacity
+        - minimumEnrollment
+        - activeEnrollmentCount
+        - remainingSeats
+        - classroom
+        - status
+      properties:
+        courseCode:
+          $ref: '#/components/schemas/CourseCode'
+        name:
+          type: string
+          minLength: 1
+          description: 과목명.
+        category:
+          $ref: '#/components/schemas/CourseCategory'
+        professorName:
+          type: string
+          minLength: 1
+          description: 담당교수 이름.
+        evaluationType:
+          $ref: '#/components/schemas/EvaluationType'
+        capacity:
+          type: integer
+          minimum: 1
+          description: 정원.
+        minimumEnrollment:
+          type: integer
+          minimum: 1
+          description: 최소 수강인원(1 이상 정원 이하).
+        activeEnrollmentCount:
+          type: integer
+          minimum: 0
+          description: 현재 ENROLLED 행 수. CLOSED 과목은 0이다.
+        remainingSeats:
+          type: integer
+          minimum: 0
+          description: 참고 여석. 신청 성공을 보장하지 않는다.
+        classroom:
+          type: string
+          minLength: 1
+          description: 강의실.
+        status:
+          $ref: '#/components/schemas/CourseStatus'
+        enrolled:
+          type: boolean
+          description: 학생 호출에만 포함. 호출 학생에게 이 과목의 현재 ENROLLED 행이 있으면 true다.
+      allOf:
+        - if:
+            properties:
+              status:
+                const: CLOSED
+          then:
+            properties:
+              activeEnrollmentCount:
+                const: 0
+    CoursePage:
+      type: object
+      description: 과목 검색 페이지(20건 고정, 과목코드 ASCII 오름차순).
+      additionalProperties: false
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Course'
+        page:
+          type: integer
+          minimum: 1
+          description: 요청한 페이지 번호.
+        pageSize:
+          type: integer
+          const: 20
+        totalItems:
+          type: integer
+          minimum: 0
+          description: 읽기 시점의 조건 일치 전체 건수.
+        totalPages:
+          type: integer
+          minimum: 0
+          description: ceil(totalItems / 20). 0건이면 0이다.
+    CourseList:
+      type: object
+      description: 교수 담당 과목 전체(페이지 없음, 과목코드 ASCII 오름차순, 폐강 포함).
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Course'
+    CourseCreateRequest:
+      type: object
+      description: 과목 등록 본문. 담당교수는 로그인한 교수로 정해지며 본문으로 받지 않는다.
+      additionalProperties: false
+      required: [courseCode, name, category, evaluationType, capacity, minimumEnrollment, classroom]
+      properties:
+        courseCode:
+          $ref: '#/components/schemas/CourseCode'
+        name:
+          type: string
+          minLength: 1
+          pattern: '\S'
+          description: 과목명. 공백 문자만으로 된 값은 E09다. trim하지 않고 그대로 저장한다.
+        category:
+          $ref: '#/components/schemas/CourseCategory'
+        evaluationType:
+          $ref: '#/components/schemas/EvaluationType'
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+          description: 정원(1 이상 2147483647 이하 정수). 범위를 벗어나면 E09다.
+        minimumEnrollment:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+          description: 최소 수강인원. 1 이상 `capacity` 이하이며 `capacity`보다 크면 E09다.
+        classroom:
+          type: string
+          minLength: 1
+          pattern: '\S'
+          description: 강의실. 공백 문자만으로 된 값은 E09다. trim하지 않고 그대로 저장한다.
+    CourseUpdateRequest:
+      type: object
+      description: 과목 수정 본문(수정 가능 6개 필드 전체 교체). 과목코드·담당교수·인원·상태 필드는 E09다.
+      additionalProperties: false
+      required: [name, category, evaluationType, capacity, minimumEnrollment, classroom]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          pattern: '\S'
+          description: 과목명. 공백 문자만으로 된 값은 E09다.
+        category:
+          $ref: '#/components/schemas/CourseCategory'
+        evaluationType:
+          $ref: '#/components/schemas/EvaluationType'
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+          description: 정원(1 이상 2147483647 이하 정수). 기존 값과 다르고 현재 인원보다 작으면 E11이다. 같으면 정원 초과 상태여도 E11이 아니다.
+        minimumEnrollment:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+          description: 최소 수강인원. 1 이상 이 본문의 `capacity` 이하이며 아니면 E09다.
+        classroom:
+          type: string
+          minLength: 1
+          pattern: '\S'
+          description: 강의실. 공백 문자만으로 된 값은 E09다.
+    CourseClosureResult:
+      type: object
+      description: 담당 과목 폐강 결과.
+      additionalProperties: false
+      required: [course, closedEnrollmentCount]
+      properties:
+        course:
+          description: 폐강 후 과목(`status` CLOSED, `activeEnrollmentCount` 0).
+          allOf:
+            - $ref: '#/components/schemas/Course'
+            - properties:
+                status:
+                  const: CLOSED
+        closedEnrollmentCount:
+          type: integer
+          minimum: 0
+          description: 이 폐강으로 ENROLLED에서 CLOSED로 바뀌어 보존된 행 수.
+    EnrollmentRequest:
+      type: object
+      description: 수강 신청 본문. 학생ID는 Access 주체에서만 가져온다.
+      additionalProperties: false
+      required: [courseCode]
+      properties:
+        courseCode:
+          $ref: '#/components/schemas/CourseCode'
+    MyEnrollment:
+      type: object
+      description: 학생 본인의 현재 신청 과목 1건.
+      additionalProperties: false
+      required: [courseCode, name, category, professorName, classroom, enrollmentType, enrolledAt, status]
+      properties:
+        courseCode:
+          $ref: '#/components/schemas/CourseCode'
+        name:
+          type: string
+          minLength: 1
+          description: 과목명.
+        category:
+          $ref: '#/components/schemas/CourseCategory'
+        professorName:
+          type: string
+          minLength: 1
+          description: 담당교수 이름.
+        classroom:
+          type: string
+          minLength: 1
+          description: 강의실.
+        enrollmentType:
+          $ref: '#/components/schemas/EnrollmentType'
+        enrolledAt:
+          type: string
+          format: date-time
+          description: 신청 시각(관리자 배정은 배정 시각).
+        status:
+          $ref: '#/components/schemas/EnrollmentStatus'
+          const: ENROLLED
+          description: 이 목록은 현재 신청(ENROLLED) 행만 담는다.
+    MyEnrollmentList:
+      type: object
+      description: 학생 본인의 현재 신청 과목 전체(페이지 없음, 과목코드 ASCII 오름차순).
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyEnrollment'
+    AdminEnrollmentRequest:
+      type: object
+      description: 관리자 배정 본문.
+      additionalProperties: false
+      required: [studentId, courseCode]
+      properties:
+        studentId:
+          $ref: '#/components/schemas/UserId'
+        courseCode:
+          $ref: '#/components/schemas/CourseCode'
+    AdminEnrollmentResult:
+      type: object
+      description: 관리자 배정 결과와 배정 직후 인원 현황.
+      additionalProperties: false
+      required: [studentId, courseCode, enrollmentType, status, enrolledAt, activeEnrollmentCount, capacity, overCapacity]
+      properties:
+        studentId:
+          $ref: '#/components/schemas/UserId'
+        courseCode:
+          $ref: '#/components/schemas/CourseCode'
+        enrollmentType:
+          $ref: '#/components/schemas/EnrollmentType'
+          const: ADMIN
+        status:
+          $ref: '#/components/schemas/EnrollmentStatus'
+          const: ENROLLED
+        enrolledAt:
+          type: string
+          format: date-time
+          description: 배정 시각.
+        activeEnrollmentCount:
+          type: integer
+          minimum: 1
+          description: 배정 직후 현재 인원.
+        capacity:
+          type: integer
+          minimum: 1
+          description: 정원.
+        overCapacity:
+          type: boolean
+          description: '`activeEnrollmentCount` > `capacity`이면 true.'
+    ServiceSettings:
+      type: object
+      description: 서비스 설정과 조회 시점 슬롯 현황 스냅샷. 슬롯·리스 식별 정보는 노출하지 않는다.
+      additionalProperties: false
+      required: [concurrencyLimit, activeSlots, availableSlots, waitingCount, lastChangedBy, lastChangedAt]
+      properties:
+        concurrencyLimit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: 동시 처리 수 N(동시에 점유할 수 있는 대기열 작업 슬롯 수). 기본 100.
+        activeSlots:
+          type: integer
+          minimum: 0
+          description: 현재 점유 중인 슬롯 수. N을 낮춘 직후 배출 중에는 N보다 클 수 있다.
+        availableSlots:
+          type: integer
+          minimum: 0
+          description: max(`concurrencyLimit` − `activeSlots`, 0).
+        waitingCount:
+          type: integer
+          minimum: 0
+          description: 조회 시점의 WAITING 티켓 수.
+        lastChangedBy:
+          description: 마지막으로 N을 바꾼 관리자 사용자ID. 초기 시드 상태에서는 null이다.
+          oneOf:
+            - $ref: '#/components/schemas/UserId'
+            - type: 'null'
+        lastChangedAt:
+          type: [string, 'null']
+          format: date-time
+          description: 마지막 변경 시각. `lastChangedBy`가 null이면 null이다.
+      allOf:
+        - if:
+            properties:
+              lastChangedBy:
+                type: 'null'
+          then:
+            properties:
+              lastChangedAt:
+                type: 'null'
+          else:
+            properties:
+              lastChangedAt:
+                type: string
+    ServiceSettingsUpdateRequest:
+      type: object
+      description: 서비스 설정 변경 본문. 다른 설정 항목은 없다.
+      additionalProperties: false
+      required: [concurrencyLimit]
+      properties:
+        concurrencyLimit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: 새 동시 처리 수 N(1~1,000 정수).
+    ClosureCandidate:
+      type: object
+      description: 폐강 대상 과목(OPEN이고 현재 인원 < 최소 수강인원).
+      additionalProperties: false
+      required: [courseCode, name, professorName, activeEnrollmentCount, minimumEnrollment, capacity]
+      properties:
+        courseCode:
+          $ref: '#/components/schemas/CourseCode'
+        name:
+          type: string
+          minLength: 1
+          description: 과목명.
+        professorName:
+          type: string
+          minLength: 1
+          description: 담당교수 이름.
+        activeEnrollmentCount:
+          type: integer
+          minimum: 0
+          description: 현재 인원.
+        minimumEnrollment:
+          type: integer
+          minimum: 1
+          description: 최소 수강인원.
+        capacity:
+          type: integer
+          minimum: 1
+          description: 정원.
+    ClosureCandidatePage:
+      type: object
+      description: 폐강 대상 페이지(20건 고정, 과목코드 ASCII 오름차순).
+      additionalProperties: false
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ClosureCandidate'
+        page:
+          type: integer
+          minimum: 1
+          description: 요청한 페이지 번호.
+        pageSize:
+          type: integer
+          const: 20
+        totalItems:
+          type: integer
+          minimum: 0
+          description: 읽기 시점의 폐강 대상 전체 건수.
+        totalPages:
+          type: integer
+          minimum: 0
+          description: ceil(totalItems / 20). 0건이면 0이다.
+    CourseClosureBatchRequest:
+      type: object
+      description: 일괄 폐강 본문. 최대 개수는 정하지 않는다.
+      additionalProperties: false
+      required: [courseCodes]
+      properties:
+        courseCodes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          description: 폐강할 과목코드 목록(1개 이상, 중복 없음). 처리와 결과는 이 순서를 따른다.
+          items:
+            $ref: '#/components/schemas/CourseCode'
+    CourseClosureItemResult:
+      type: object
+      description: 과목 1건의 폐강 결과.
+      additionalProperties: false
+      required: [courseCode, code, closedEnrollmentCount]
+      properties:
+        courseCode:
+          $ref: '#/components/schemas/CourseCode'
+        code:
+          $ref: '#/components/schemas/CourseClosureItemCode'
+        closedEnrollmentCount:
+          type: [integer, 'null']
+          minimum: 0
+          description: OK일 때 CLOSED로 보존된 행 수. 그 밖에는 null이다.
+      allOf:
+        - if:
+            properties:
+              code:
+                const: OK
+          then:
+            properties:
+              closedEnrollmentCount:
+                type: integer
+          else:
+            properties:
+              closedEnrollmentCount:
+                type: 'null'
+    CourseClosureBatchResult:
+      type: object
+      description: 입력 순서의 과목별 폐강 결과.
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CourseClosureItemResult'
+    FieldViolation:
+      type: object
+      description: E09 입력 위반 1건. 입력 값(특히 비밀번호)을 메시지에 되풀이하지 않는다.
+      additionalProperties: false
+      required: [source, field, message]
+      properties:
+        source:
+          type: string
+          enum: [BODY, QUERY, PATH]
+          description: 위반 위치.
+        field:
+          type: string
+          description: BODY는 JSON Pointer(RFC 6901, 본문 전체는 빈 문자열), QUERY·PATH는 파라미터 이름.
+        message:
+          type: string
+          minLength: 1
+          description: 사람이 읽는 위반 설명.
+    ProblemDetails:
+      type: object
+      description: |
+        RFC 9457 Problem Details. `type`은 `urn:crs:problem:{code}`, `status`는 HTTP 상태와 같다. `reason`은 E02에만,
+        `activeTicketId`는 E03에만 쓰며 `violations`는 E09에 필수다.
+      additionalProperties: false
+      required: [type, title, status, detail, code]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: 문제 유형 URI(`urn:crs:problem:{code}`).
+        title:
+          type: string
+          minLength: 1
+          description: 코드별 고정 제목.
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: HTTP 상태 코드.
+        detail:
+          type: string
+          minLength: 1
+          description: 이번 오류의 설명. 비밀·내부 정보를 담지 않는다.
+        code:
+          $ref: '#/components/schemas/ProblemCode'
+        reason:
+          $ref: '#/components/schemas/AuthFailureReason'
+        activeTicketId:
+          $ref: '#/components/schemas/TicketId'
+        violations:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/FieldViolation'
+      allOf:
+        - if:
+            properties:
+              code:
+                const: E02
+          else:
+            not:
+              required: [reason]
+        - if:
+            properties:
+              code:
+                const: E03
+          else:
+            not:
+              required: [activeTicketId]
+        - if:
+            properties:
+              code:
+                const: E09
+          then:
+            required: [violations]
+            properties:
+              status:
+                const: 400
+          else:
+            not:
+              required: [violations]
+        - if:
+            properties:
+              code:
+                const: E01
+          then:
+            properties:
+              status:
+                const: 401
+        - if:
+            properties:
+              code:
+                const: E02
+          then:
+            properties:
+              status:
+                enum: [401, 403]
+        - if:
+            properties:
+              code:
+                enum: [E03, E05, E06, E10, E11, E14, E15]
+          then:
+            properties:
+              status:
+                const: 409
+        - if:
+            properties:
+              code:
+                const: E04
+          then:
+            properties:
+              status:
+                const: 404
+        - if:
+            properties:
+              code:
+                const: E13
+          then:
+            properties:
+              status:
+                const: 422
+        - if:
+            properties:
+              code:
+                const: INTERNAL_ERROR
+          then:
+            properties:
+              status:
+                const: 500
+        - if:
+            required: [reason]
+            properties:
+              reason:
+                enum: [ACCESS_TOKEN_EXPIRED, SESSION_REVOKED, SESSION_EXPIRED, REFRESH_TOKEN_INVALID, REFRESH_TOKEN_REUSED]
+          then:
+            properties:
+              status:
+                const: 401
+        - if:
+            required: [reason]
+            properties:
+              reason:
+                enum: [LOGIN_PROOF_INVALID, LOGIN_PROOF_EXPIRED, LOGIN_EXCHANGE_CONSUMED, CSRF_CHECK_FAILED, FORBIDDEN]
+          then:
+            properties:
+              status:
+                const: 403
+        - if:
+            properties:
+              code:
+                const: E02
+              status:
+                const: 403
+          then:
+            required: [reason]
+  examples:
+    ProblemE01LoginRejected:
+      summary: 거절로 종결된 LOGIN 티켓의 토큰 수령 시도
+      value:
+        type: 'urn:crs:problem:E01'
+        title: 인증 실패
+        status: 401
+        detail: 로그인 요청이 거절로 종결되었습니다. 다시 로그인하십시오.
+        code: E01
+    ProblemE02AccessMissing:
+      summary: Access 없음 또는 형식·서명 오류(reason 없음)
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 401
+        detail: 유효한 Access 토큰이 필요합니다.
+        code: E02
+    ProblemE02AccessExpired:
+      summary: Access 만료
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 401
+        detail: Access 토큰이 만료되었습니다. 토큰을 갱신한 뒤 다시 요청하십시오.
+        code: E02
+        reason: ACCESS_TOKEN_EXPIRED
+    ProblemE02SessionRevoked:
+      summary: 세션 폐기(로그아웃·재사용 탐지)
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 401
+        detail: 세션이 종료되었습니다. 다시 로그인하십시오.
+        code: E02
+        reason: SESSION_REVOKED
+    ProblemE02SessionExpired:
+      summary: 세션 절대 만료(7일)
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 401
+        detail: 세션 유효 기간이 끝났습니다. 다시 로그인하십시오.
+        code: E02
+        reason: SESSION_EXPIRED
+    ProblemE02RefreshInvalid:
+      summary: Refresh 없음·알 수 없음(세션 변경 없음)
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 401
+        detail: 사용할 수 있는 Refresh 토큰이 없습니다. 다시 로그인하십시오.
+        code: E02
+        reason: REFRESH_TOKEN_INVALID
+    ProblemE02RefreshReused:
+      summary: 소비된 Refresh 재사용(해당 세션만 폐기)
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 401
+        detail: 이미 사용한 Refresh 토큰이 다시 제출되어 해당 세션을 종료했습니다. 다시 로그인하십시오.
+        code: E02
+        reason: REFRESH_TOKEN_REUSED
+    ProblemE02LoginProofInvalid:
+      summary: 소유 증명 없음·불일치(티켓 존재 여부 비노출)
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 403
+        detail: 이 로그인 요청의 소유 증명을 확인할 수 없습니다.
+        code: E02
+        reason: LOGIN_PROOF_INVALID
+    ProblemE02LoginProofExpired:
+      summary: 소유 증명 만료
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 403
+        detail: 로그인 요청의 소유 증명이 만료되었습니다. 다시 로그인하십시오.
+        code: E02
+        reason: LOGIN_PROOF_EXPIRED
+    ProblemE02LoginExchangeConsumed:
+      summary: 이미 최초 토큰을 받은 LOGIN 티켓
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 403
+        detail: 이 로그인 요청의 토큰은 이미 발급되었습니다. 토큰 갱신을 사용하거나 다시 로그인하십시오.
+        code: E02
+        reason: LOGIN_EXCHANGE_CONSUMED
+    ProblemE02CsrfFailed:
+      summary: Origin·X-CSRF-Protection 검사 실패
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 403
+        detail: 요청 출처 또는 CSRF 보호 헤더가 올바르지 않습니다.
+        code: E02
+        reason: CSRF_CHECK_FAILED
+    ProblemE02Forbidden:
+      summary: 역할이 연산을 허용하지 않음
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 403
+        detail: 이 역할로는 요청할 수 없습니다.
+        code: E02
+        reason: FORBIDDEN
+    ProblemE02NotCourseOwner:
+      summary: 본인 담당 과목이 아님
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 403
+        detail: 본인이 담당하는 과목만 변경할 수 있습니다.
+        code: E02
+        reason: FORBIDDEN
+    ProblemE02TicketForbidden:
+      summary: 티켓 조회 자격 없음(원인 구분 없음)
+      value:
+        type: 'urn:crs:problem:E02'
+        title: 인증·권한 없음
+        status: 403
+        detail: 이 티켓을 조회할 수 없습니다.
+        code: E02
+        reason: FORBIDDEN
+    ProblemE03LoginPending:
+      summary: 익명 컨텍스트에 미완료 LOGIN 있음
+      value:
+        type: 'urn:crs:problem:E03'
+        title: 미완료 요청 있음
+        status: 409
+        detail: 처리 중인 로그인 요청이 있습니다. 기존 요청의 결과를 확인하십시오.
+        code: E03
+        activeTicketId: '1001'
+    ProblemE03TicketPending:
+      summary: 사용자에게 미완료 티켓 있음(모든 세션 합산)
+      value:
+        type: 'urn:crs:problem:E03'
+        title: 미완료 요청 있음
+        status: 409
+        detail: 처리 중인 요청이 있습니다. 결과가 나온 뒤 다시 요청하십시오.
+        code: E03
+        activeTicketId: '1187'
+    ProblemE03LoginTicketIncomplete:
+      summary: LOGIN 티켓이 아직 종결되지 않음
+      value:
+        type: 'urn:crs:problem:E03'
+        title: 미완료 요청 있음
+        status: 409
+        detail: 로그인 요청이 아직 처리 중입니다. 결과를 확인한 뒤 다시 시도하십시오.
+        code: E03
+        activeTicketId: '1001'
+    ProblemE04CourseNotFound:
+      summary: 과목 없음
+      value:
+        type: 'urn:crs:problem:E04'
+        title: 과목 없음
+        status: 404
+        detail: 과목코드 NOP0000에 해당하는 과목이 없습니다.
+        code: E04
+    ProblemE05CourseClosed:
+      summary: 폐강 과목
+      value:
+        type: 'urn:crs:problem:E05'
+        title: 폐강 과목
+        status: 409
+        detail: 폐강된 과목입니다.
+        code: E05
+    ProblemE06AlreadyEnrolled:
+      summary: 이미 신청한 과목
+      value:
+        type: 'urn:crs:problem:E06'
+        title: 이미 신청한 과목
+        status: 409
+        detail: 학생 20260001은 이미 CSE3010을 신청했습니다.
+        code: E06
+    ProblemE09MissingPassword:
+      summary: 필수 필드 누락(값 비반사)
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 요청 본문이 계약과 맞지 않습니다.
+        code: E09
+        violations:
+          - source: BODY
+            field: /password
+            message: 필수 항목입니다.
+    ProblemE09UnknownLoginField:
+      summary: 정의되지 않은 본문 필드
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 요청 본문이 계약과 맞지 않습니다.
+        code: E09
+        violations:
+          - source: BODY
+            field: /rememberMe
+            message: 정의되지 않은 필드입니다.
+    ProblemE09BodyNotAllowed:
+      summary: 본문을 받지 않는 요청에 본문이 있음
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 이 요청은 본문을 받지 않습니다.
+        code: E09
+        violations:
+          - source: BODY
+            field: ''
+            message: 본문을 보내지 마십시오.
+    ProblemE09InvalidTicketId:
+      summary: 티켓 번호 형식 오류
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 경로 파라미터 형식이 올바르지 않습니다.
+        code: E09
+        violations:
+          - source: PATH
+            field: ticketId
+            message: 양의 10진수 문자열이어야 합니다.
+    ProblemE09InvalidCourseCodePath:
+      summary: 경로의 과목코드 형식 오류
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 경로 파라미터 형식이 올바르지 않습니다.
+        code: E09
+        violations:
+          - source: PATH
+            field: courseCode
+            message: ASCII 영문자·숫자 1~10자여야 합니다.
+    ProblemE09InvalidPage:
+      summary: 페이지 번호 오류
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 쿼리 파라미터 형식이 올바르지 않습니다.
+        code: E09
+        violations:
+          - source: QUERY
+            field: page
+            message: 1 이상의 정수여야 합니다.
+    ProblemE09UnknownQuery:
+      summary: 정의되지 않은 쿼리 파라미터
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 쿼리 파라미터가 계약과 맞지 않습니다.
+        code: E09
+        violations:
+          - source: QUERY
+            field: pageSize
+            message: 정의되지 않은 쿼리 파라미터입니다.
+    ProblemE09InvalidCourseCodeBody:
+      summary: 본문의 과목코드 형식 오류
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 요청 본문이 계약과 맞지 않습니다.
+        code: E09
+        violations:
+          - source: BODY
+            field: /courseCode
+            message: ASCII 영문자·숫자 1~10자여야 합니다.
+    ProblemE09MinimumExceedsCapacity:
+      summary: 최소 수강인원이 정원보다 큼
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 요청 본문이 계약과 맞지 않습니다.
+        code: E09
+        violations:
+          - source: BODY
+            field: /minimumEnrollment
+            message: 1 이상 정원 이하여야 합니다.
+    ProblemE09ServerOwnedField:
+      summary: 수정 본문에 바꿀 수 없는 필드 포함
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 요청 본문이 계약과 맞지 않습니다.
+        code: E09
+        violations:
+          - source: BODY
+            field: /courseCode
+            message: 수정 본문에 넣을 수 없는 필드입니다.
+    ProblemE09ConcurrencyLimitRange:
+      summary: N 범위 위반
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 요청 본문이 계약과 맞지 않습니다.
+        code: E09
+        violations:
+          - source: BODY
+            field: /concurrencyLimit
+            message: 1 이상 1000 이하의 정수여야 합니다.
+    ProblemE09EmptyCourseCodes:
+      summary: 빈 과목코드 목록
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 요청 본문이 계약과 맞지 않습니다.
+        code: E09
+        violations:
+          - source: BODY
+            field: /courseCodes
+            message: 과목코드를 1개 이상 보내야 합니다.
+    ProblemE09DuplicateCourseCodes:
+      summary: 중복 과목코드
+      value:
+        type: 'urn:crs:problem:E09'
+        title: 입력값 오류
+        status: 400
+        detail: 요청 본문이 계약과 맞지 않습니다.
+        code: E09
+        violations:
+          - source: BODY
+            field: /courseCodes/2
+            message: 앞 항목과 중복된 과목코드입니다.
+    ProblemE10DuplicateCourseCode:
+      summary: 과목코드 중복(폐강 과목 포함)
+      value:
+        type: 'urn:crs:problem:E10'
+        title: 과목코드 중복
+        status: 409
+        detail: 과목코드 CSE3010은 이미 사용 중입니다. 폐강된 과목의 코드도 다시 쓸 수 없습니다.
+        code: E10
+    ProblemE11CapacityBelowActive:
+      summary: 변경한 정원이 현재 인원보다 작음
+      value:
+        type: 'urn:crs:problem:E11'
+        title: 정원 축소 불가
+        status: 409
+        detail: 새 정원 30은 현재 인원 38보다 작습니다.
+        code: E11
+    ProblemE13NotStudent:
+      summary: 학생 계정 아님(없음 또는 다른 역할)
+      value:
+        type: 'urn:crs:problem:E13'
+        title: 학생 계정 아님
+        status: 422
+        detail: 지정한 사용자ID는 학생 계정이 아닙니다.
+        code: E13
+    ProblemE14NotClosureCandidate:
+      summary: 최소 인원 미달이 아님
+      value:
+        type: 'urn:crs:problem:E14'
+        title: 폐강 대상 아님
+        status: 409
+        detail: 개설 상태이면서 현재 인원이 최소 수강인원보다 적은 과목만 폐강할 수 있습니다.
+        code: E14
+    ProblemE14AlreadyClosed:
+      summary: 이미 폐강된 과목(반복 요청 포함)
+      value:
+        type: 'urn:crs:problem:E14'
+        title: 폐강 대상 아님
+        status: 409
+        detail: 이미 폐강된 과목입니다.
+        code: E14
+    ProblemE15AdmissionRequired:
+      summary: 수강신청 화면 미입장
+      value:
+        type: 'urn:crs:problem:E15'
+        title: 수강신청 화면 미입장
+        status: 409
+        detail: 수강신청 화면에 먼저 입장하십시오.
+        code: E15
+    ProblemInternalError:
+      summary: 기술 오류
+      value:
+        type: 'urn:crs:problem:INTERNAL_ERROR'
+        title: 서버 내부 오류
+        status: 500
+        detail: 요청을 처리하지 못했습니다. 잠시 후 다시 시도하십시오.
+        code: INTERNAL_ERROR

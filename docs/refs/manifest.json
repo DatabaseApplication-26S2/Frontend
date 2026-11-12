@@ -1,0 +1,517 @@
+{
+  "tool": "ctx7@0.9.0",
+  "entries": [
+    {
+      "group": "Core",
+      "topic": "React hooks rules",
+      "file": "react/hooks.md",
+      "library": "React",
+      "id": "/websites/react_dev_reference",
+      "projectVersion": "19.3.1",
+      "query": "useState useEffect useMemo useCallback rules and dependency arrays",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "Core",
+      "topic": "React Suspense, lazy, error boundaries",
+      "file": "react/suspense-lazy.md",
+      "library": "React",
+      "id": "/websites/react_dev_reference",
+      "projectVersion": "19.3.1",
+      "query": "Suspense lazy and error boundaries",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "Core",
+      "topic": "React 19 actions and forms",
+      "file": "react/actions-forms.md",
+      "library": "React",
+      "id": "/websites/react_dev_reference",
+      "projectVersion": "19.3.1",
+      "query": "useActionState useOptimistic form actions",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "Core",
+      "topic": "Vite dev server proxy and env",
+      "file": "vite/server-proxy-env.md",
+      "library": "Vite",
+      "id": "/vitejs/vite",
+      "version": "v7.3.5",
+      "projectVersion": "7.3.5",
+      "query": "server.proxy configuration and env variables import.meta.env VITE_ prefix and modes"
+    },
+    {
+      "group": "Core",
+      "topic": "Vite build and code splitting",
+      "file": "vite/build.md",
+      "library": "Vite",
+      "id": "/vitejs/vite",
+      "version": "v7.3.5",
+      "projectVersion": "7.3.5",
+      "query": "build options, dynamic import code splitting and preview"
+    },
+    {
+      "group": "UI",
+      "topic": "Tailwind v4 setup and @theme",
+      "file": "tailwind/setup-theme.md",
+      "library": "Tailwind CSS",
+      "id": "/tailwindlabs/tailwindcss.com",
+      "projectVersion": "4.3.3",
+      "query": "v4 @import tailwindcss, @theme variables and the @tailwindcss/vite plugin",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed). The default branch documents v4."
+    },
+    {
+      "group": "UI",
+      "topic": "Tailwind variants, responsive, dark mode",
+      "file": "tailwind/variants-responsive-dark.md",
+      "library": "Tailwind CSS",
+      "id": "/tailwindlabs/tailwindcss.com",
+      "projectVersion": "4.3.3",
+      "query": "responsive breakpoints, state variants and dark mode with custom variant",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "UI",
+      "topic": "shadcn/ui CLI and components.json",
+      "file": "shadcn/cli.md",
+      "library": "shadcn/ui",
+      "id": "/shadcn-ui/ui",
+      "version": "shadcn_4.21.0",
+      "projectVersion": "4.21.0",
+      "query": "shadcn CLI add command and components.json configuration"
+    },
+    {
+      "group": "UI",
+      "topic": "shadcn/ui Field with react-hook-form",
+      "file": "shadcn/field-form.md",
+      "library": "shadcn/ui",
+      "id": "/shadcn-ui/ui",
+      "version": "shadcn_4.21.0",
+      "projectVersion": "4.21.0",
+      "query": "Field FieldLabel FieldError components with react-hook-form and zod"
+    },
+    {
+      "group": "UI",
+      "topic": "shadcn/ui theming",
+      "file": "shadcn/theming.md",
+      "library": "shadcn/ui",
+      "id": "/shadcn-ui/ui",
+      "version": "shadcn_4.21.0",
+      "projectVersion": "4.21.0",
+      "query": "theming with CSS variables and dark mode"
+    },
+    {
+      "group": "UI",
+      "topic": "shadcn/ui data display (table, dialog)",
+      "file": "shadcn/table-dialog.md",
+      "library": "shadcn/ui",
+      "id": "/shadcn-ui/ui",
+      "version": "shadcn_4.21.0",
+      "projectVersion": "4.21.0",
+      "query": "Table, Dialog, Sheet and DropdownMenu component usage"
+    },
+    {
+      "group": "UI",
+      "topic": "Radix primitives composition",
+      "file": "radix/primitives.md",
+      "library": "Radix UI",
+      "id": "/websites/radix-ui_primitives",
+      "projectVersion": "1.8.x (radix-ui)",
+      "query": "asChild composition, Dialog and DropdownMenu accessibility",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "UI",
+      "topic": "Sonner toasts",
+      "file": "sonner/toast.md",
+      "library": "Sonner",
+      "id": "/emilkowalski/sonner",
+      "version": "v2.0.8",
+      "projectVersion": "2.0.8",
+      "query": "toast API, toast.promise and Toaster options"
+    },
+    {
+      "group": "UI",
+      "topic": "Lucide React icons",
+      "file": "lucide/react.md",
+      "library": "Lucide",
+      "id": "/lucide-icons/lucide",
+      "version": "1.49.0",
+      "projectVersion": "1.49.0",
+      "query": "lucide-react icon component props size color strokeWidth"
+    },
+    {
+      "group": "Routing & server state",
+      "topic": "React Router data router setup",
+      "file": "react-router/data-router.md",
+      "library": "React Router",
+      "id": "/websites/reactrouter",
+      "version": "7.13.0",
+      "projectVersion": "7.13.0",
+      "query": "createBrowserRouter route objects with Component and children and RouterProvider in data mode"
+    },
+    {
+      "group": "Routing & server state",
+      "topic": "React Router navigation and redirects",
+      "file": "react-router/navigation.md",
+      "library": "React Router",
+      "id": "/websites/reactrouter",
+      "version": "7.13.0",
+      "projectVersion": "7.13.0",
+      "query": "useNavigate, Navigate, Outlet, redirect and protecting routes"
+    },
+    {
+      "group": "Routing & server state",
+      "topic": "React Router loaders and actions",
+      "file": "react-router/loaders-actions.md",
+      "library": "React Router",
+      "id": "/websites/reactrouter",
+      "version": "7.13.0",
+      "projectVersion": "7.13.0",
+      "query": "loader and action functions with useLoaderData and useFetcher in data mode"
+    },
+    {
+      "group": "Routing & server state",
+      "topic": "TanStack Query queries and mutations",
+      "file": "tanstack-query/queries-mutations.md",
+      "library": "TanStack Query",
+      "id": "/tanstack/query",
+      "version": "v5.90.3",
+      "projectVersion": "5.90.3",
+      "query": "useQuery and useMutation with invalidateQueries in React"
+    },
+    {
+      "group": "Routing & server state",
+      "topic": "TanStack Query client defaults and keys",
+      "file": "tanstack-query/client-keys.md",
+      "library": "TanStack Query",
+      "id": "/tanstack/query",
+      "version": "v5.90.3",
+      "projectVersion": "5.90.3",
+      "query": "QueryClient defaultOptions staleTime retry and query key factories"
+    },
+    {
+      "group": "Routing & server state",
+      "topic": "TanStack Query optimistic updates",
+      "file": "tanstack-query/optimistic.md",
+      "library": "TanStack Query",
+      "id": "/tanstack/query",
+      "version": "v5.90.3",
+      "projectVersion": "5.90.3",
+      "query": "optimistic updates with onMutate and rollback"
+    },
+    {
+      "group": "Routing & server state",
+      "topic": "openapi-fetch client and middleware",
+      "file": "openapi/openapi-fetch.md",
+      "library": "openapi-fetch",
+      "id": "/openapi-ts/openapi-typescript",
+      "projectVersion": "0.17.x",
+      "query": "openapi-fetch createClient, middleware onRequest onResponse and error handling",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "Routing & server state",
+      "topic": "openapi-typescript CLI",
+      "file": "openapi/openapi-typescript.md",
+      "library": "openapi-typescript",
+      "id": "/openapi-ts/openapi-typescript",
+      "projectVersion": "7.13.x",
+      "query": "openapi-typescript CLI generate types from URL or local file and options",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "Forms & validation",
+      "topic": "React Hook Form useForm",
+      "file": "react-hook-form/useform.md",
+      "library": "React Hook Form",
+      "id": "/websites/react-hook-form",
+      "projectVersion": "7.91.x",
+      "query": "useForm register handleSubmit formState errors and setError",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "Forms & validation",
+      "topic": "React Hook Form field arrays and Controller",
+      "file": "react-hook-form/controller-field-array.md",
+      "library": "React Hook Form",
+      "id": "/websites/react-hook-form",
+      "projectVersion": "7.91.x",
+      "query": "Controller and useFieldArray",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "Forms & validation",
+      "topic": "zodResolver",
+      "file": "react-hook-form/zod-resolver.md",
+      "library": "@hookform/resolvers",
+      "id": "/react-hook-form/resolvers",
+      "projectVersion": "7.0.x",
+      "query": "zodResolver usage with zod v4",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed). Indexed snapshots stop at v6.0.2; v7 is the project's major."
+    },
+    {
+      "group": "Forms & validation",
+      "topic": "Zod schemas",
+      "file": "zod/schemas.md",
+      "library": "Zod",
+      "id": "/colinhacks/zod",
+      "version": "v4.6.7",
+      "projectVersion": "4.6.7",
+      "query": "object schemas, string email min max, refine and custom error messages"
+    },
+    {
+      "group": "Forms & validation",
+      "topic": "Zod parsing and errors",
+      "file": "zod/parse-errors.md",
+      "library": "Zod",
+      "id": "/colinhacks/zod",
+      "version": "v4.6.7",
+      "projectVersion": "4.6.7",
+      "query": "safeParse, z.infer types and error formatting flattenError treeifyError"
+    },
+    {
+      "group": "Testing & tooling",
+      "topic": "Vitest config (jsdom, setup files)",
+      "file": "vitest/config.md",
+      "library": "Vitest",
+      "id": "/vitest-dev/vitest",
+      "version": "v4.1.12",
+      "projectVersion": "4.1.12",
+      "query": "vitest config jsdom environment setupFiles and globals"
+    },
+    {
+      "group": "Testing & tooling",
+      "topic": "Vitest mocking",
+      "file": "vitest/mocking.md",
+      "library": "Vitest",
+      "id": "/vitest-dev/vitest",
+      "version": "v4.1.12",
+      "projectVersion": "4.1.12",
+      "query": "vi.fn vi.spyOn vi.mock and fake timers"
+    },
+    {
+      "group": "Testing & tooling",
+      "topic": "React Testing Library queries",
+      "file": "testing-library/react.md",
+      "library": "React Testing Library",
+      "id": "/testing-library/react-testing-library",
+      "version": "v16.3.3",
+      "projectVersion": "16.3.3",
+      "query": "render, screen queries, findBy and waitFor"
+    },
+    {
+      "group": "Testing & tooling",
+      "topic": "user-event interactions",
+      "file": "testing-library/user-event.md",
+      "library": "user-event",
+      "id": "/testing-library/user-event",
+      "projectVersion": "14.6.8",
+      "query": "userEvent.setup options, click, type and keyboard APIs",
+      "note": "Docs come from the library's default branch (v14 line); the pinned v14 snapshot only indexes the README."
+    },
+    {
+      "group": "Testing & tooling",
+      "topic": "MSW handlers (browser and node)",
+      "file": "msw/handlers.md",
+      "library": "MSW",
+      "id": "/mswjs/msw",
+      "version": "v2.15.0",
+      "projectVersion": "2.15.0",
+      "query": "http handlers with HttpResponse.json, setupWorker in browser and setupServer in node tests"
+    },
+    {
+      "group": "Testing & tooling",
+      "topic": "ESLint flat config",
+      "file": "eslint/flat-config.md",
+      "library": "ESLint",
+      "id": "/eslint/eslint",
+      "version": "v9.39.3",
+      "projectVersion": "9.39.3",
+      "query": "flat config eslint.config.js files ignores and plugins"
+    },
+    {
+      "group": "Testing & tooling",
+      "topic": "typescript-eslint config",
+      "file": "eslint/typescript-eslint.md",
+      "library": "typescript-eslint",
+      "id": "/typescript-eslint/typescript-eslint",
+      "version": "v8.72.1",
+      "projectVersion": "8.72.1",
+      "query": "flat config setup with recommended and type-checked rules"
+    },
+    {
+      "group": "Testing & tooling",
+      "topic": "Prettier options",
+      "file": "prettier/options.md",
+      "library": "Prettier",
+      "id": "/prettier/prettier",
+      "version": "3.9.10",
+      "projectVersion": "3.9.10",
+      "query": "configuration file and options printWidth semi singleQuote"
+    },
+    {
+      "group": "CSV and spreadsheets (browser)",
+      "topic": "Papa Parse: parse files, streaming, workers",
+      "file": "csv/papaparse.md",
+      "library": "Papa Parse",
+      "id": "/mholt/papaparse",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it (npm 5.7.0).",
+      "query": "parse a File object with header true, step or chunk streaming and worker mode",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "CSV and spreadsheets (browser)",
+      "topic": "Papa Parse: unparse to CSV",
+      "file": "csv/papaparse-unparse.md",
+      "library": "Papa Parse",
+      "id": "/mholt/papaparse",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it (npm 5.7.0).",
+      "query": "Papa.unparse JSON to CSV and download",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "CSV and spreadsheets (browser)",
+      "topic": "SheetJS: read xlsx to JSON",
+      "file": "spreadsheets/sheetjs-read.md",
+      "library": "SheetJS",
+      "id": "/websites/sheetjs",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it.",
+      "query": "read a workbook from a File with XLSX.read and sheet_to_json",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed). Install from cdn.sheetjs.com as the docs instruct; the npm `xlsx` package (0.18.5) is stale."
+    },
+    {
+      "group": "CSV and spreadsheets (browser)",
+      "topic": "SheetJS: write and export xlsx",
+      "file": "spreadsheets/sheetjs-write.md",
+      "library": "SheetJS",
+      "id": "/websites/sheetjs",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it.",
+      "query": "json_to_sheet, book_new and writeFile export",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "Tables and large lists",
+      "topic": "TanStack Table: columns, sorting, filtering, pagination",
+      "file": "tanstack-table/basics.md",
+      "library": "TanStack Table",
+      "id": "/tanstack/table",
+      "version": "v8.20.5",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it (use v8 to match shadcn data-table).",
+      "query": "useReactTable column definitions with sorting filtering and pagination row models",
+      "note": "v9 is the current npm major (9.3.1); shadcn's data-table guide targets v8, so the pack pins v8.20.5."
+    },
+    {
+      "group": "Tables and large lists",
+      "topic": "shadcn/ui data table",
+      "file": "shadcn/data-table.md",
+      "library": "shadcn/ui",
+      "id": "/shadcn-ui/ui",
+      "version": "shadcn_4.21.0",
+      "projectVersion": "4.21.0",
+      "query": "data table built with TanStack Table columns and DataTable component"
+    },
+    {
+      "group": "Tables and large lists",
+      "topic": "TanStack Virtual: virtualized lists",
+      "file": "tanstack-virtual/virtualizer.md",
+      "library": "TanStack Virtual",
+      "id": "/websites/tanstack_virtual",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it (npm 3.14.26).",
+      "query": "useVirtualizer for a long list and a virtualized table",
+      "note": "Docs come from the library's default branch (no snapshot for the project's version is indexed)."
+    },
+    {
+      "group": "Dashboards and form inputs",
+      "topic": "shadcn/ui charts",
+      "file": "shadcn/charts.md",
+      "library": "shadcn/ui",
+      "id": "/shadcn-ui/ui",
+      "version": "shadcn_4.21.0",
+      "projectVersion": "4.21.0",
+      "query": "Chart component ChartContainer ChartConfig and tooltip with Recharts"
+    },
+    {
+      "group": "Dashboards and form inputs",
+      "topic": "Recharts: line, bar, area charts",
+      "file": "recharts/charts.md",
+      "library": "Recharts",
+      "id": "/recharts/recharts",
+      "version": "v3.10.1",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it (npm 3.10.1).",
+      "query": "ResponsiveContainer LineChart BarChart AreaChart axes and tooltip"
+    },
+    {
+      "group": "Dashboards and form inputs",
+      "topic": "date-fns: format, parse, intervals",
+      "file": "date-fns/format-parse.md",
+      "library": "date-fns",
+      "id": "/date-fns/date-fns",
+      "version": "v4.4.0",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it (npm 4.4.0).",
+      "query": "format parseISO differenceInDays and interval helpers"
+    },
+    {
+      "group": "Dashboards and form inputs",
+      "topic": "shadcn/ui calendar and date picker",
+      "file": "shadcn/date-picker.md",
+      "library": "shadcn/ui",
+      "id": "/shadcn-ui/ui",
+      "version": "shadcn_4.21.0",
+      "projectVersion": "4.21.0",
+      "query": "Calendar and date picker with Popover and date range"
+    },
+    {
+      "group": "Dashboards and form inputs",
+      "topic": "React DayPicker: modes and ranges",
+      "file": "react-day-picker/modes.md",
+      "library": "React DayPicker",
+      "id": "/gpbl/react-day-picker",
+      "version": "v10.0.2",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it (npm 10.0.2).",
+      "query": "single multiple and range selection modes and disabled days",
+      "note": "Check which DayPicker major the shadcn calendar component installs before mixing APIs."
+    },
+    {
+      "group": "Dashboards and form inputs",
+      "topic": "Zustand: stores and selectors",
+      "file": "zustand/stores.md",
+      "library": "Zustand",
+      "id": "/pmndrs/zustand",
+      "version": "v5.0.12",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it (npm 5.0.16; same major as the snapshot).",
+      "query": "create a store with actions, selectors with useShallow and persist middleware"
+    },
+    {
+      "group": "End-to-end testing",
+      "topic": "Playwright: test, locators, assertions",
+      "file": "playwright/tests.md",
+      "library": "Playwright",
+      "id": "/microsoft/playwright",
+      "version": "v1.64.1",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it (npm 1.64.1).",
+      "query": "writing tests with page locators getByRole and web-first assertions"
+    },
+    {
+      "group": "End-to-end testing",
+      "topic": "Playwright: config, webServer, auth state",
+      "file": "playwright/config.md",
+      "library": "Playwright",
+      "id": "/microsoft/playwright",
+      "version": "v1.64.1",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it (npm 1.64.1).",
+      "query": "playwright.config webServer baseURL projects and storageState authentication setup"
+    },
+    {
+      "group": "End-to-end testing",
+      "topic": "Playwright: network mocking",
+      "file": "playwright/network.md",
+      "library": "Playwright",
+      "id": "/microsoft/playwright",
+      "version": "v1.64.1",
+      "projectVersion": "Not a dependency yet; add it when a feature needs it (npm 1.64.1).",
+      "query": "page.route mocking API responses and waitForResponse"
+    }
+  ]
+}

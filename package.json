@@ -1,0 +1,68 @@
+{
+  "name": "database-application-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:mock": "VITE_USE_MOCK=true vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "gen:api": "openapi-typescript openapi.yaml -o src/api/schema.d.ts"
+  },
+  "dependencies": {
+    "@fontsource/noto-sans-kr": "5.3.1",
+    "@hookform/resolvers": "^7.0.1",
+    "@tanstack/react-query": "5.90.3",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.5.1",
+    "lucide-react": "1.49.0",
+    "next-themes": "^0.4.6",
+    "openapi-fetch": "^0.17.0",
+    "radix-ui": "^1.8.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-hook-form": "^7.91.0",
+    "react-router": "7.13.0",
+    "shadcn": "4.21.0",
+    "sonner": "2.0.8",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.3",
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "^14.6.8",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "eslint": "9.39.3",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
+    "jsdom": "^26.1.0",
+    "msw": "2.15.0",
+    "openapi-typescript": "^7.13.0",
+    "prettier": "3.9.10",
+    "tailwindcss": "^4.3.3",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "7.3.5",
+    "vitest": "4.1.12"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}

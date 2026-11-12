@@ -1,0 +1,196 @@
+@layer theme, base, stageshow, components, utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource/noto-sans-kr/400.css';
+@import '@fontsource/noto-sans-kr/700.css';
+/* stageshow motion parts (MIT, src/components/motion/LICENSE). Imported only here so the
+   `stageshow` layer sits between Tailwind's base and components (see the first line). */
+@import './components/motion/Roll.css';
+@import './components/motion/Collapse.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Noto Sans KR', sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary: var(--secondary);
+  --color-overlay: var(--overlay);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-heading: var(--heading);
+  --color-link: var(--link);
+  --color-link-hover: var(--link-hover);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* Palette: computed colors observed on https://lms.ssu.ac.kr/ (2026-11-10).
+     App-local names, not upstream CSS variables. Usage rules live in DESIGN.md. */
+  --palette-teal: #13bec9;
+  --palette-teal-strong: #0a99a3;
+  --palette-blue: #2b518c;
+  --palette-navy: #002255;
+  --palette-navy-deep: #00183d;
+  --palette-white: #ffffff;
+  --palette-gray-50: #f5f5f5;
+  --palette-gray-100: #eeeeee;
+  --palette-gray-200: #dddddd;
+  --palette-gray-500: #888888;
+  --palette-gray-600: #666666;
+  --palette-gray-900: #222222;
+
+  /* Measured type sizes. Used as text-(length:--font-size-*) because cn/tailwind-merge
+     would read a custom `text-title` utility as a text color and drop it. */
+  --font-size-title: 1.625rem; /* 26px */
+  --line-height-title: 2rem; /* 32px */
+  --font-size-cta: 1.1rem; /* 17.6px */
+
+  --background: var(--palette-gray-50);
+  --foreground: var(--palette-gray-900);
+  --card: var(--palette-white);
+  --card-foreground: var(--palette-gray-900);
+  --popover: var(--palette-white);
+  --popover-foreground: var(--palette-gray-900);
+  --primary: var(--palette-teal);
+  --primary-foreground: var(--palette-navy-deep);
+  --primary-hover: var(--palette-teal-strong);
+  --secondary: var(--palette-blue);
+  --secondary-foreground: var(--palette-white);
+  --secondary-hover: var(--palette-navy);
+  --muted: var(--palette-gray-50);
+  --muted-foreground: var(--palette-gray-600);
+  --accent: var(--palette-gray-100);
+  --accent-foreground: var(--palette-gray-900);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: var(--palette-gray-200);
+  --input: var(--palette-gray-500);
+  --ring: var(--palette-blue);
+  --heading: var(--palette-navy);
+  --link: var(--palette-navy);
+  --link-hover: var(--palette-blue);
+  /* Dialog scrim. Non-text surface; dialog text sits on --card. Contrast in DESIGN.md 2.4. */
+  --overlay: color-mix(in srgb, var(--palette-navy-deep) 50%, transparent);
+  /* Native checkbox fill (accent-color). */
+  --control-accent: var(--palette-blue);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* Dark keeps the pre-existing neutral scheme; no LMS dark-mode evidence exists. */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --primary-hover: color-mix(in oklab, var(--primary) 80%, transparent);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --secondary-hover: color-mix(in oklch, var(--secondary), var(--foreground) 5%);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --heading: var(--card-foreground);
+  --link: var(--foreground);
+  --link-hover: var(--muted-foreground);
+  --overlay: oklch(0 0 0 / 50%);
+  --control-accent: auto;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Korean wraps at 어절 boundaries; long emails/URLs still break. */
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+  input[type='checkbox'] {
+    accent-color: var(--control-accent);
+  }
+  html {
+    @apply font-sans antialiased;
+  }
+}
+
+/* Sonner injects an unlayered system font stack on [data-sonner-toaster] at runtime.
+   This unlayered rule has higher specificity, so toasts inherit Noto Sans KR. */
+[data-sonner-toaster][data-sonner-theme] {
+  font-family: inherit;
+}
