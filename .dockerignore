@@ -1,0 +1,7 @@
+.git
+node_modules
+dist
+# 로컬 .env가 들어가면 VITE_* 값(예: VITE_USE_MOCK)이 운영 번들에 고정된다.
+.env*
+*.local
+*.log

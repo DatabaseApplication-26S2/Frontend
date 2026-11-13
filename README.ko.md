@@ -86,6 +86,24 @@ pnpm dev:mock   # 동일하지만 MSW가 브라우저에서 /api/v1/* 를 응답
 | `VITE_USE_MOCK`     | `false`   | `true`면 MSW가 `/api/v1/*`를 가로챕니다. `pnpm dev:mock`이 자동 설정          |
 | `VITE_API_BASE_URL` | `/api/v1` | API 기준 경로. 기본은 Vite 프록시 경유, `http://localhost:8080/api/v1`이면 직접 호출 |
 
+## 배포 (Docker)
+
+`Dockerfile`은 SPA를 빌드한 뒤 Caddy로 80번 포트(HTTP 전용)에서 서빙합니다. Caddy는 `dist/`를 제공하고, 클라이언트 경로는 `index.html`로 돌려주며, `/api/*`는 `Origin` 헤더를 포함해 그대로 `API_UPSTREAM`(기본 `api:8080`)으로 넘깁니다.
+
+```yaml
+# 백엔드 서비스와 같은 compose.yaml
+services:
+  web:
+    build: ./frontend
+    ports: ['80:80']
+    environment:
+      API_UPSTREAM: api:8080 # 같은 Compose 프로젝트의 백엔드 서비스
+```
+
+- TLS는 앞단에서 종료합니다(예: Nginx Proxy Manager → `http://<호스트>:80`). 백엔드 인증 쿠키는 항상 `Secure`라서 HTTP로 접속하면 로그인이 깨집니다.
+- 백엔드의 `APP_FRONTEND_ORIGIN`은 공개 HTTPS 출처(예: `https://crs.example.com`)와 정확히 같아야 합니다. 다르면 쿠키 연산이 403을 돌려줍니다.
+- `VITE_*` 값은 빌드 시점에 고정됩니다. `.dockerignore`가 `.env`를 빌드에서 빼므로 이미지는 기본값(`VITE_API_BASE_URL=/api/v1`, 모의 서버 꺼짐)을 씁니다.
+
 ## 프로젝트 구성
 
 ```

@@ -86,6 +86,24 @@ Copy `.env.example` to `.env` (git-ignored).
 | `VITE_USE_MOCK`     | `false`   | `true` makes MSW intercept `/api/v1/*`. `pnpm dev:mock` sets it for you         |
 | `VITE_API_BASE_URL` | `/api/v1` | API base path. Default goes through the Vite proxy; `http://localhost:8080/api/v1` calls directly |
 
+## Deploy (Docker)
+
+`Dockerfile` builds the SPA and serves it with Caddy on port 80 (HTTP only). Caddy serves `dist/`, falls back to `index.html` for client routes, and proxies `/api/*` unchanged (including the `Origin` header) to `API_UPSTREAM` (default `api:8080`).
+
+```yaml
+# compose.yaml next to the backend service
+services:
+  web:
+    build: ./frontend
+    ports: ['80:80']
+    environment:
+      API_UPSTREAM: api:8080 # backend service in the same Compose project
+```
+
+- Terminate TLS in front (e.g. Nginx Proxy Manager → `http://<host>:80`). The backend's auth cookies are always `Secure`, so plain HTTP breaks login.
+- Set the backend's `APP_FRONTEND_ORIGIN` to the public HTTPS origin (e.g. `https://crs.example.com`); any other value makes cookie operations return 403.
+- `VITE_*` values are fixed at build time. `.dockerignore` keeps `.env` out of the build, so the image uses the defaults (`VITE_API_BASE_URL=/api/v1`, mock off).
+
 ## Project layout
 
 ```
