@@ -84,7 +84,7 @@ Starts four containers at once: PostgreSQL, Redis, the API and the web server. T
    | Admin     | `A1001`               | `/admin/enrollments`                 |
 
 - If another program already uses port 80 (common on Windows), add the two lines `WEB_PORT=8080` and `APP_FRONTEND_ORIGIN=http://localhost:8080` to `.env`, run `docker compose up -d --build --wait` again, and open `http://localhost:8080`. `APP_FRONTEND_ORIGIN` must equal the origin in the browser's address bar exactly; otherwise login fails with 403 (`code` `E02`, `reason` `CSRF_CHECK_FAILED`).
-- The auth cookies are always `Secure`. Browsers accept them on `http://localhost` without HTTPS, but reaching the app from another PC through a server IP or domain requires HTTPS (see [Deploy (Docker)](#deploy-docker)). Cookie behaviour was checked in Chrome, so Chrome is recommended.
+- The auth cookies are always `Secure`. Browsers accept them on `http://localhost` without HTTPS, but reaching the app from another PC through a server IP or domain requires HTTPS (see [Deploy (Docker)](#deploy-docker)). Cookie behavior was checked in Chrome, so Chrome is recommended.
 - Stop and restart with `docker compose stop` / `docker compose start`. `docker compose down` removes the containers but keeps the DB data. `docker compose down -v` also deletes the DB data; the next `docker compose up` seeds it again.
 
 ### 2. Dev server + real backend
@@ -180,7 +180,7 @@ pnpm dev        # http://localhost:5173 — proxies /api → http://localhost:80
 pnpm dev:mock   # same, but MSW serves /api/v1/* in the browser; no backend needed
 ```
 
-`pnpm dev:mock` is a script that runs `VITE_USE_MOCK=true vite`, passing the environment variable with POSIX shell syntax. If it fails on Windows, put `VITE_USE_MOCK=true` in `.env` and run `pnpm dev` instead (same behaviour; see [Environment variables](#environment-variables)).
+`pnpm dev:mock` is a script that runs `VITE_USE_MOCK=true vite`, passing the environment variable with POSIX shell syntax. If it fails on Windows, put `VITE_USE_MOCK=true` in `.env` and run `pnpm dev` instead (same behavior; see [Environment variables](#environment-variables)). Before going back to route 2 (real backend), remove that line or set it to `VITE_USE_MOCK=false`; otherwise `pnpm dev` keeps using the mock server.
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
 

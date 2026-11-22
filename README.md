@@ -180,7 +180,7 @@ pnpm dev        # http://localhost:5173 — /api → http://localhost:8080 프�
 pnpm dev:mock   # 동일하지만 MSW가 브라우저에서 /api/v1/* 를 응답. 백엔드 불필요
 ```
 
-`pnpm dev:mock`은 `VITE_USE_MOCK=true vite`를 실행하는 스크립트로, 환경 변수를 POSIX 셸 문법으로 넘깁니다. Windows에서 이 명령이 실패하면 `.env`에 `VITE_USE_MOCK=true`를 넣고 `pnpm dev`를 실행합니다(같은 동작, [환경 변수](#환경-변수) 참고).
+`pnpm dev:mock`은 `VITE_USE_MOCK=true vite`를 실행하는 스크립트로, 환경 변수를 POSIX 셸 문법으로 넘깁니다. Windows에서 이 명령이 실패하면 `.env`에 `VITE_USE_MOCK=true`를 넣고 `pnpm dev`를 실행합니다(같은 동작, [환경 변수](#환경-변수) 참고). 방법 2(실제 백엔드)로 돌아가기 전에는 이 줄을 지우거나 `VITE_USE_MOCK=false`로 바꿉니다. 그대로 두면 `pnpm dev`도 계속 모의 서버를 씁니다.
 
 검사: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`
 
