@@ -22,7 +22,7 @@
 
 ### 1. 전체 스택 (Docker, 채점·시연용)
 
-PostgreSQL·Redis·API·웹 서버 컨테이너 네 개를 한 번에 띄웁니다. 이 저장소만으로는 실행할 수 없고 Backend 저장소와 실행 구성 파일 `compose.yaml`이 함께 필요합니다. 제출용 ZIP 패키지에는 `backend/`, `frontend/`, `compose.yaml`, `.env.example`이 이미 들어 있으므로, ZIP을 받았다면 2·3단계를 건너뛰고 4단계부터 진행합니다. ZIP에 든 `README.md`(와 `README.pdf`)에 같은 절차가 더 자세히 있습니다.
+PostgreSQL·Redis·API·웹 서버 컨테이너 네 개를 한 번에 띄웁니다. 이 저장소만으로는 실행할 수 없고 Backend 저장소와 실행 구성 파일 `compose.yaml`이 함께 필요합니다. 제출용 ZIP 패키지에는 `backend/`, `frontend/`, `compose.yaml`, `.env.example`이 이미 들어 있으므로, ZIP을 받았다면 2·3단계를 건너뛰고 압축을 푼 `crs-package/` 폴더(`compose.yaml`이 있는 폴더)에서 4단계부터 진행합니다. ZIP에 든 `README.md`(와 `README.pdf`)에 같은 절차가 더 자세히 있습니다.
 
 1. Git과 Docker를 설치합니다. Windows·macOS는 Docker Desktop을 설치하고 실행해 둡니다. Linux는 Docker Engine과 Docker Compose 플러그인을 설치합니다.
 2. 빈 폴더를 만들고 두 저장소를 `backend`, `frontend`라는 이름으로 나란히 클론합니다(Windows PowerShell·macOS·Linux 공통).
@@ -84,7 +84,8 @@ PostgreSQL·Redis·API·웹 서버 컨테이너 네 개를 한 번에 띄웁니�
    | 관리자 | `A1001`               | `/admin/enrollments`    |
 
 - 80번 포트를 다른 프로그램이 쓰고 있으면(Windows에서 흔함) `.env`에 `WEB_PORT=8080`과 `APP_FRONTEND_ORIGIN=http://localhost:8080` 두 줄을 추가하고 `docker compose up -d --build --wait`를 다시 실행한 뒤 `http://localhost:8080`에 접속합니다. `APP_FRONTEND_ORIGIN`은 브라우저 주소의 출처와 정확히 같아야 하며, 다르면 로그인이 403(`code` `E02`, `reason` `CSRF_CHECK_FAILED`)으로 실패합니다.
-- 인증 쿠키는 항상 `Secure`입니다. 브라우저는 `http://localhost`에서는 HTTPS 없이도 이 쿠키를 받지만, 다른 PC에서 서버 IP나 도메인으로 접속하려면 HTTPS가 필요합니다([배포 (Docker)](#배포-docker) 참고). 쿠키 동작은 Chrome에서 확인했으므로 Chrome을 권장합니다.
+- 기본 `WEB_PORT`로 띄우면 웹 포트가 이 PC의 모든 네트워크 인터페이스에서 열리므로 같은 네트워크의 다른 PC도 접속할 수 있고, curl 같은 도구로 공개된 시드 비밀번호를 써서 로그인할 수도 있습니다. 이 PC에서만 접속하게 하려면 `.env`에 `WEB_PORT=127.0.0.1:80`을 넣습니다. 8080번 포트를 쓴다면 `WEB_PORT=127.0.0.1:8080`과 `APP_FRONTEND_ORIGIN=http://localhost:8080`을 넣습니다.
+- 인증 쿠키는 항상 `Secure`입니다. 브라우저는 `http://localhost`에서는 HTTPS 없이도 이 쿠키를 받지만, 다른 PC의 브라우저에서 서버 IP나 도메인으로 접속해 로그인하려면 HTTPS가 필요합니다([배포 (Docker)](#배포-docker) 참고). 쿠키 동작은 Chrome에서 확인했으므로 Chrome을 권장합니다.
 - 중지와 재시작은 `docker compose stop` / `docker compose start`입니다. `docker compose down`은 컨테이너를 지우지만 DB 데이터는 남깁니다. `docker compose down -v`는 DB 데이터까지 지우며, 다음 `docker compose up`에서 시드를 다시 넣습니다.
 
 ### 2. 개발 서버 + 실제 백엔드
@@ -180,7 +181,7 @@ pnpm dev        # http://localhost:5173 — /api → http://localhost:8080 프�
 pnpm dev:mock   # 동일하지만 MSW가 브라우저에서 /api/v1/* 를 응답. 백엔드 불필요
 ```
 
-`pnpm dev:mock`은 `VITE_USE_MOCK=true vite`를 실행하는 스크립트로, 환경 변수를 POSIX 셸 문법으로 넘깁니다. Windows에서 이 명령이 실패하면 `.env`에 `VITE_USE_MOCK=true`를 넣고 `pnpm dev`를 실행합니다(같은 동작, [환경 변수](#환경-변수) 참고). 방법 2(실제 백엔드)로 돌아가기 전에는 이 줄을 지우거나 `VITE_USE_MOCK=false`로 바꿉니다. 그대로 두면 `pnpm dev`도 계속 모의 서버를 씁니다.
+`pnpm dev:mock`은 `VITE_USE_MOCK=true vite`를 실행하는 스크립트로, 환경 변수를 POSIX 셸 문법으로 넘깁니다. Windows에서는 pnpm이 스크립트를 cmd.exe로 실행하므로 이 명령이 실패합니다. 대신 `.env`에 `VITE_USE_MOCK=true`를 넣고 `pnpm dev`를 실행합니다(같은 동작, [환경 변수](#환경-변수) 참고). 방법 2(실제 백엔드)로 돌아가기 전에는 이 줄을 지우거나 `VITE_USE_MOCK=false`로 바꿉니다. 그대로 두면 `pnpm dev`도 계속 모의 서버를 씁니다.
 
 검사: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`
 
@@ -200,7 +201,7 @@ pnpm dev:mock   # 동일하지만 MSW가 브라우저에서 /api/v1/* 를 응답
 
 ### 모의 서버 동작
 
-모의 서버는 티켓을 1초 간격으로 진행합니다(대기 2회 → 처리 중 → 종결). 브라우저 콘솔의 `__crsMock.scenario`로 Access 만료(`expireAccess()`)나 세션 폐기(`revokeSession()`)를 흉내 낼 수 있습니다. 모의 세션은 페이지 메모리에 있으므로 새로고침하면 다시 로그인해야 합니다.
+모의 서버는 티켓을 1초 간격으로 진행합니다(대기 2회 → 처리 중 → 종결). 브라우저 콘솔에서 `__crsMock.scenario.expireAccess()`로 Access 만료를, `__crsMock.scenario.revokeSession()`으로 세션 폐기를 흉내 낼 수 있습니다. 모의 세션은 페이지 메모리에 있으므로 새로고침하면 다시 로그인해야 합니다.
 
 모의 모드에서 "일시적인 오류입니다"가 나오면 MSW가 요청을 가로채지 못해 Vite 프록시가 없는 백엔드(`localhost:8080`) 대신 500을 돌려준 것입니다. 오래 숨겨 둔 탭은 앱이 다시 보일 때 자동으로 복구하지만, 개발자 도구의 서비스 워커 "Bypass for network"가 켜져 있으면 끄고 새로고침하세요.
 

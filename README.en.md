@@ -22,7 +22,7 @@ The two sets of accounts are different. See [Accounts](#accounts) for the full l
 
 ### 1. Full stack (Docker, for grading and demos)
 
-Starts four containers at once: PostgreSQL, Redis, the API and the web server. This repository alone cannot run it; you also need the Backend repository and the run configuration file `compose.yaml`. The submission ZIP package already contains `backend/`, `frontend/`, `compose.yaml` and `.env.example`; if you received the ZIP, skip steps 2 and 3 and continue from step 4. The ZIP's `README.md` (and `README.pdf`) describes the same steps in more detail.
+Starts four containers at once: PostgreSQL, Redis, the API and the web server. This repository alone cannot run it; you also need the Backend repository and the run configuration file `compose.yaml`. The submission ZIP package already contains `backend/`, `frontend/`, `compose.yaml` and `.env.example`; if you received the ZIP, skip steps 2 and 3 and continue from step 4 inside the unzipped `crs-package/` folder (the one holding `compose.yaml`). The ZIP's `README.md` (and `README.pdf`) describes the same steps in more detail.
 
 1. Install Git and Docker. On Windows and macOS, install Docker Desktop and keep it running. On Linux, install Docker Engine and the Docker Compose plugin.
 2. Create an empty folder and clone the two repositories side by side as `backend` and `frontend` (same on Windows PowerShell, macOS and Linux).
@@ -84,7 +84,8 @@ Starts four containers at once: PostgreSQL, Redis, the API and the web server. T
    | Admin     | `A1001`               | `/admin/enrollments`                 |
 
 - If another program already uses port 80 (common on Windows), add the two lines `WEB_PORT=8080` and `APP_FRONTEND_ORIGIN=http://localhost:8080` to `.env`, run `docker compose up -d --build --wait` again, and open `http://localhost:8080`. `APP_FRONTEND_ORIGIN` must equal the origin in the browser's address bar exactly; otherwise login fails with 403 (`code` `E02`, `reason` `CSRF_CHECK_FAILED`).
-- The auth cookies are always `Secure`. Browsers accept them on `http://localhost` without HTTPS, but reaching the app from another PC through a server IP or domain requires HTTPS (see [Deploy (Docker)](#deploy-docker)). Cookie behavior was checked in Chrome, so Chrome is recommended.
+- With the default `WEB_PORT`, the web port listens on all of this PC's network interfaces, so other PCs on the same network can reach it and could log in with the public seed password using a tool such as curl. To allow access from this PC only, put `WEB_PORT=127.0.0.1:80` in `.env`. With port 8080, put `WEB_PORT=127.0.0.1:8080` and `APP_FRONTEND_ORIGIN=http://localhost:8080`.
+- The auth cookies are always `Secure`. Browsers accept them on `http://localhost` without HTTPS, but logging in from a browser on another PC through a server IP or domain requires HTTPS (see [Deploy (Docker)](#deploy-docker)). Cookie behavior was checked in Chrome, so Chrome is recommended.
 - Stop and restart with `docker compose stop` / `docker compose start`. `docker compose down` removes the containers but keeps the DB data. `docker compose down -v` also deletes the DB data; the next `docker compose up` seeds it again.
 
 ### 2. Dev server + real backend
@@ -180,7 +181,7 @@ pnpm dev        # http://localhost:5173 — proxies /api → http://localhost:80
 pnpm dev:mock   # same, but MSW serves /api/v1/* in the browser; no backend needed
 ```
 
-`pnpm dev:mock` is a script that runs `VITE_USE_MOCK=true vite`, passing the environment variable with POSIX shell syntax. If it fails on Windows, put `VITE_USE_MOCK=true` in `.env` and run `pnpm dev` instead (same behavior; see [Environment variables](#environment-variables)). Before going back to route 2 (real backend), remove that line or set it to `VITE_USE_MOCK=false`; otherwise `pnpm dev` keeps using the mock server.
+`pnpm dev:mock` is a script that runs `VITE_USE_MOCK=true vite`, passing the environment variable with POSIX shell syntax. On Windows, pnpm runs scripts with cmd.exe, so this command fails there. Instead, put `VITE_USE_MOCK=true` in `.env` and run `pnpm dev` (same behavior; see [Environment variables](#environment-variables)). Before going back to route 2 (real backend), remove that line or set it to `VITE_USE_MOCK=false`; otherwise `pnpm dev` keeps using the mock server.
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
 
@@ -200,7 +201,7 @@ The real backend (routes 1 and 2) and the mock server (route 3) use different ac
 
 ### Mock server behavior
 
-The mock advances tickets at 1-second intervals (two waiting polls → processing → done). In the browser console, `__crsMock.scenario.expireAccess()` and `revokeSession()` simulate an expired access token and a revoked session. Mock sessions live in page memory, so a reload means logging in again.
+The mock advances tickets at 1-second intervals (two waiting polls → processing → done). In the browser console, `__crsMock.scenario.expireAccess()` and `__crsMock.scenario.revokeSession()` simulate an expired access token and a revoked session. Mock sessions live in page memory, so a reload means logging in again.
 
 If mock mode shows "일시적인 오류입니다", MSW did not intercept the request and the Vite proxy returned 500 for the missing backend (`localhost:8080`). A tab left hidden for a long time recovers on its own when it becomes visible again; if DevTools' Service Worker "Bypass for network" is on, turn it off and reload.
 
