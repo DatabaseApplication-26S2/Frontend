@@ -22,7 +22,7 @@ The two sets of accounts are different. See [Accounts](#accounts) for the full l
 
 ### 1. Full stack (Docker, for grading and demos)
 
-Starts four containers at once: PostgreSQL, Redis, the API and the web server. This repository alone cannot run it; you also need the Backend repository and the run configuration file `compose.yaml`. The submission ZIP package already contains `backend/`, `frontend/`, `compose.yaml` and `.env.example`; if you received the ZIP, skip steps 2 and 3 and follow the guide bundled in the ZIP.
+Starts four containers at once: PostgreSQL, Redis, the API and the web server. This repository alone cannot run it; you also need the Backend repository and the run configuration file `compose.yaml`. The submission ZIP package already contains `backend/`, `frontend/`, `compose.yaml` and `.env.example`; if you received the ZIP, skip steps 2 and 3 and continue from step 4. The ZIP's `README.md` (and `README.pdf`) describes the same steps in more detail.
 
 1. Install Git and Docker. On Windows and macOS, install Docker Desktop and keep it running. On Linux, install Docker Engine and the Docker Compose plugin.
 2. Create an empty folder and clone the two repositories side by side as `backend` and `frontend` (same on Windows PowerShell, macOS and Linux).
@@ -242,6 +242,7 @@ When exposing it on a server:
 - Set `APP_FRONTEND_ORIGIN=https://<domain>` in `.env`.
 - Do not let the proxy rewrite the `Origin` header. Do not add Basic Auth, because the app uses the `Authorization: Bearer` header.
 - Keep the db, redis and api ports unpublished.
+- Before making the site public, change the seed account passwords: the admin ID `A1001` and the shared password `Demo-password1!` are public. Follow the "시드 계정 비밀번호 바꾸기" (changing seed account passwords) section of the [Backend README](https://github.com/DatabaseApplication-26S2/Backend).
 
 ## Project layout
 

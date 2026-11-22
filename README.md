@@ -22,7 +22,7 @@
 
 ### 1. 전체 스택 (Docker, 채점·시연용)
 
-PostgreSQL·Redis·API·웹 서버 컨테이너 네 개를 한 번에 띄웁니다. 이 저장소만으로는 실행할 수 없고 Backend 저장소와 실행 구성 파일 `compose.yaml`이 함께 필요합니다. 제출용 ZIP 패키지에는 `backend/`, `frontend/`, `compose.yaml`, `.env.example`이 이미 들어 있으므로, ZIP을 받았다면 2·3단계를 건너뛰고 ZIP에 동봉된 안내를 따릅니다.
+PostgreSQL·Redis·API·웹 서버 컨테이너 네 개를 한 번에 띄웁니다. 이 저장소만으로는 실행할 수 없고 Backend 저장소와 실행 구성 파일 `compose.yaml`이 함께 필요합니다. 제출용 ZIP 패키지에는 `backend/`, `frontend/`, `compose.yaml`, `.env.example`이 이미 들어 있으므로, ZIP을 받았다면 2·3단계를 건너뛰고 4단계부터 진행합니다. ZIP에 든 `README.md`(와 `README.pdf`)에 같은 절차가 더 자세히 있습니다.
 
 1. Git과 Docker를 설치합니다. Windows·macOS는 Docker Desktop을 설치하고 실행해 둡니다. Linux는 Docker Engine과 Docker Compose 플러그인을 설치합니다.
 2. 빈 폴더를 만들고 두 저장소를 `backend`, `frontend`라는 이름으로 나란히 클론합니다(Windows PowerShell·macOS·Linux 공통).
@@ -242,6 +242,7 @@ Copy-Item .env.example .env
 - `.env`에 `APP_FRONTEND_ORIGIN=https://<도메인>`을 설정합니다.
 - 프록시에서 `Origin` 헤더를 바꾸지 않습니다. 앱이 `Authorization: Bearer` 헤더를 쓰므로 Basic Auth를 추가하지 않습니다.
 - db·redis·api 포트는 공개하지 않습니다.
+- 사이트를 공개하기 전에 시드 계정 비밀번호를 바꿉니다. 관리자 ID `A1001`과 공통 비밀번호 `Demo-password1!`는 공개된 값입니다. 방법은 [Backend README](https://github.com/DatabaseApplication-26S2/Backend)의 "시드 계정 비밀번호 바꾸기" 절을 따릅니다.
 
 ## 프로젝트 구성
 
