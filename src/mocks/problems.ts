@@ -31,7 +31,7 @@ const DETAILS: Record<ProblemCode, string> = {
   E04: '과목코드에 해당하는 과목이 없습니다.',
   E05: '폐강된 과목입니다.',
   E06: '이미 신청한 과목입니다.',
-  E09: '요청 본문이 계약과 맞지 않습니다.',
+  E09: '요청 본문이 명세와 맞지 않습니다.',
   E10: '이미 사용 중인 과목코드입니다. 폐강된 과목의 코드도 다시 쓸 수 없습니다.',
   E11: '새 정원이 현재 인원보다 작습니다.',
   E13: '지정한 사용자ID는 학생 계정이 아닙니다.',
@@ -76,7 +76,7 @@ export function problem(
   }
   if (reason) body.reason = reason
   if (code === 'E09' && !body.violations?.length) {
-    body.violations = [{ source: 'BODY', field: '', message: '요청이 계약과 맞지 않습니다.' }]
+    body.violations = [{ source: 'BODY', field: '', message: '요청이 명세와 맞지 않습니다.' }]
   }
   return body
 }
@@ -109,7 +109,7 @@ export function invalidInput(violations: FieldViolation[]): Response {
     violations[0].source === 'PATH'
       ? '경로 파라미터 형식이 올바르지 않습니다.'
       : violations[0].source === 'QUERY'
-        ? '쿼리 파라미터가 계약과 맞지 않습니다.'
+        ? '쿼리 파라미터가 명세와 맞지 않습니다.'
         : violations[0].field === ''
           ? '요청 본문 형식이 올바르지 않습니다.'
           : DETAILS.E09

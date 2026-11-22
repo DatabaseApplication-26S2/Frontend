@@ -6,7 +6,7 @@
 
 대기열 기반 수강신청 시스템(CRS)의 웹 프런트엔드입니다. 학생·교수·관리자 세 역할의 화면이 있고, 로그인과 수강신청 요청은 대기열 티켓으로 처리되어 같은 화면에서 순번이 줄어드는 모습을 보여 줍니다.
 
-실제 백엔드(API 서버)는 [DatabaseApplication-26S2/Backend](https://github.com/DatabaseApplication-26S2/Backend) 저장소입니다. API 계약은 `openapi.yaml`(버전 0.1.0)이며, 이 저장소의 `openapi.yaml`은 Backend 저장소의 `docs/openapi.yaml`과 같은 파일입니다(두 파일은 바이트 단위로 같아야 합니다). 두 저장소는 현재 비공개이므로 클론하려면 저장소 초대가 필요합니다.
+실제 백엔드(API 서버)는 [DatabaseApplication-26S2/Backend](https://github.com/DatabaseApplication-26S2/Backend) 저장소입니다. API 명세는 `openapi.yaml`(버전 0.1.0)이며, 이 저장소의 `openapi.yaml`은 Backend 저장소의 `docs/openapi.yaml`과 같은 파일입니다(두 파일은 바이트 단위로 같아야 합니다). 두 저장소는 현재 비공개이므로 클론하려면 저장소 초대가 필요합니다.
 
 ## 실행 방법 한눈에
 
@@ -282,15 +282,15 @@ Dockerfile, Caddyfile  배포 이미지(SPA 빌드 + Caddy)
 
 ## 확장하기
 
-### 계약이 바뀌었을 때 → 타입 재생성
+### 명세가 바뀌었을 때 → 타입 재생성
 
-계약의 원본은 Backend 저장소의 `docs/openapi.yaml`입니다. 두 저장소를 `backend/`, `frontend/`로 나란히 클론했다면 `frontend/` 폴더에서 다음을 실행합니다.
+명세의 원본은 Backend 저장소의 `docs/openapi.yaml`입니다. 두 저장소를 `backend/`, `frontend/`로 나란히 클론했다면 `frontend/` 폴더에서 다음을 실행합니다.
 
 macOS·Linux:
 
 ```bash
 cp ../backend/docs/openapi.yaml openapi.yaml   # 사본 갱신(두 파일이 바이트 단위로 같아야 함)
-pnpm gen:api && pnpm typecheck                 # 핸들러·화면의 계약 불일치를 여기서 잡는다
+pnpm gen:api && pnpm typecheck                 # 핸들러·화면의 명세 불일치를 여기서 잡는다
 ```
 
 Windows PowerShell:
@@ -327,7 +327,7 @@ export function useCourse(courseCode: string) {
 
 ### 모의 핸들러 추가
 
-`src/mocks/handlers/` 아래 해당 파일에 핸들러를 더합니다. 응답 본문은 `satisfies Schemas[...]`로 계약 타입을 검사합니다. `pnpm dev:mock`과 테스트에 모두 적용됩니다.
+`src/mocks/handlers/` 아래 해당 파일에 핸들러를 더합니다. 응답 본문은 `satisfies Schemas[...]`로 명세 타입을 검사합니다. `pnpm dev:mock`과 테스트에 모두 적용됩니다.
 
 ### 폼 추가
 

@@ -54,7 +54,7 @@ async function receiveFully(response: Response): Promise<Response> {
   })
 }
 
-/** 오류 본문이 ProblemDetails 모양(문자열 code)이면 그 값을, 아니면 null. 나머지 필드는 계약 스키마를 믿는다. */
+/** 오류 본문이 ProblemDetails 모양(문자열 code)이면 그 값을, 아니면 null. 나머지 필드는 명세 스키마를 믿는다. */
 export function toProblem(body: unknown): ProblemDetails | null {
   if (typeof body !== 'object' || body === null || !('code' in body)) return null
   if (typeof body.code !== 'string') return null
