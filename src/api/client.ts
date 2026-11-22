@@ -12,7 +12,7 @@ export const api = createClient<paths>({
   fetch: authFetch,
 })
 
-// 쿠키 연산 4개(로그인, 토큰 수령, 갱신, 로그아웃)의 헤더. 계약 타입상 Origin이 필수지만 브라우저가 넣는
+// 쿠키 연산 4개(로그인, 토큰 수령, 갱신, 로그아웃)의 헤더. 명세 타입상 Origin이 필수지만 브라우저가 넣는
 // 금지 헤더라 값을 넣지 않는다. 런타임 값은 X-CSRF-Protection뿐이며 캐스팅은 이곳 한 군데만 둔다.
 export const COOKIE_OP_HEADERS = { 'X-CSRF-Protection': '1' } as {
   Origin: string

@@ -6,7 +6,7 @@ Frontend for [DatabaseApplication-26S2/Frontend](https://github.com/DatabaseAppl
 
 Web frontend for the queue-based course registration system (CRS). It has screens for three roles (student, professor, admin). Login and enrollment requests go through queue tickets, so the same screen shows the queue position counting down.
 
-The real backend (API server) is the [DatabaseApplication-26S2/Backend](https://github.com/DatabaseApplication-26S2/Backend) repository. The API contract is `openapi.yaml` (version 0.1.0); `openapi.yaml` in this repository is the same file as `docs/openapi.yaml` in the Backend repository (the two files must be byte-identical). Both repositories are currently private, so cloning them requires an invitation to the repositories.
+The real backend (API server) is the [DatabaseApplication-26S2/Backend](https://github.com/DatabaseApplication-26S2/Backend) repository. The API specification is `openapi.yaml` (version 0.1.0); `openapi.yaml` in this repository is the same file as `docs/openapi.yaml` in the Backend repository (the two files must be byte-identical). Both repositories are currently private, so cloning them requires an invitation to the repositories.
 
 ## Running at a glance
 
@@ -282,15 +282,15 @@ Refresh or extend: edit `docs/refs/manifest.json`, then run `node scripts/fetch-
 
 ## Extending
 
-### Contract changed → regenerate types
+### Specification changed → regenerate types
 
-The source of the contract is `docs/openapi.yaml` in the Backend repository. If both repositories are cloned side by side as `backend/` and `frontend/`, run the following in the `frontend/` folder.
+The source of the specification is `docs/openapi.yaml` in the Backend repository. If both repositories are cloned side by side as `backend/` and `frontend/`, run the following in the `frontend/` folder.
 
 macOS and Linux:
 
 ```bash
 cp ../backend/docs/openapi.yaml openapi.yaml   # refresh the copy (the two files must be byte-identical)
-pnpm gen:api && pnpm typecheck                 # contract mismatches in handlers and screens surface here
+pnpm gen:api && pnpm typecheck                 # specification mismatches in handlers and screens surface here
 ```
 
 Windows PowerShell:

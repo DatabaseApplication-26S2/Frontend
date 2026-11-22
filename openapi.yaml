@@ -3,9 +3,9 @@ jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
 info:
   title: 대기열 기반 수강신청 시스템 API
   version: 0.1.0
-  summary: 웹 프런트엔드용 HTTP 계약 설계 초안(구현 준비용, 미배포)
+  summary: 웹 프런트엔드용 HTTP API 명세 설계 초안(구현 준비용, 미배포)
   description: |
-    대기열 기반 수강신청 시스템의 웹 프런트엔드가 호출하는 HTTP 계약 **설계 초안**이다. 스키마·상태 코드·헤더·인증·예시를
+    대기열 기반 수강신청 시스템의 웹 프런트엔드가 호출하는 HTTP API 명세 **설계 초안**이다. 스키마·상태 코드·헤더·인증·예시를
     구현에 바로 쓸 수 있는 수준으로 정의하지만 서버·웹 애플리케이션 코드, 실제 배포, 성능 검증 결과를 뜻하지 않는다.
 
     - 정책 합의일: 2026-11-10. 회의 요구와 업무 정의의 출처는 [단위업무기술서](단위업무기술서.md),
@@ -109,7 +109,7 @@ info:
     - CORS 응답: `Access-Control-Allow-Origin`은 설정된 프런트엔드 출처와 정확히 같은 값(와일드카드 금지),
       `Access-Control-Allow-Credentials: true`, 허용 메서드 `GET, POST, PUT, DELETE`, 허용 헤더
       `Authorization, Content-Type, X-CSRF-Protection`, 노출 헤더 `Location, Retry-After`(`Set-Cookie`는 노출하지 않음),
-      `Vary: Origin`. 사전 요청(`OPTIONS`)은 계약 연산이 아니다.
+      `Vary: Origin`. 사전 요청(`OPTIONS`)은 명세 연산이 아니다.
     - 쿠키를 다루는 변경 요청 4개(`login`, `exchangeLoginTokens`, `refreshTokens`, `logout`)는 `Origin`이 허용 출처와
       정확히 같고 `X-CSRF-Protection: 1` 헤더가 있어야 한다. 하나라도 어긋나면 어떤 상태도 바꾸지 않고 403 E02
       `CSRF_CHECK_FAILED`를 반환한다. 이 헤더는 인증 비밀이 아니라 단순 요청을 사전 요청으로 바꾸는 장치다. 같은
@@ -124,7 +124,7 @@ info:
     - 서버가 고정한 허용 서명 알고리즘과 키 출처로 서명을 검증하고, `iss`·`aud`·시간을 확인한 뒤, 서버의
       세션(ACTIVE이고 현재 시각 < `expiresAt`)·사용자·역할을 권위로 확인한다. 토큰 안 `role`보다 서버 값이 우선한다.
     - 클라이언트가 보낸 `sid`나 세대 값만으로 세션을 폐기하거나 재사용을 추정하지 않는다. 서명 알고리즘과
-      프레임워크 선택은 공개 계약에 포함하지 않는다.
+      프레임워크 선택은 공개 명세에 포함하지 않는다.
 
     ### 4.6 세션과 Refresh 수명주기(ENT-06 접속 세션, ENT-07 Refresh 토큰 기록)
 
@@ -142,7 +142,7 @@ info:
        상태를 바꾸는 배치 작업에 의존하지 않는다. 세션 상태(ACTIVE|REVOKED)는 서버 내부 값이며 응답 필드가 아니다.
     6. 같은 세션의 갱신은 입장 상태(`admittedAt`)를 유지한다. 새 로그인은 새 세션이므로 다시 입장해야 한다.
 
-    ### 4.7 클라이언트 계약(클라이언트 코드가 아닌 문서상 약속)
+    ### 4.7 클라이언트 명세(클라이언트 코드가 아닌 문서상 약속)
 
     - Access는 JS 메모리에만 둔다. 토큰 값은 `localStorage`·`sessionStorage`·`BroadcastChannel`·로그에 넣지 않는다.
     - 새로고침 등으로 메모리의 Access가 없으면 `POST /auth/refresh`로 복구한다.
@@ -3589,7 +3589,7 @@ components:
         type: 'urn:crs:problem:E09'
         title: 입력값 오류
         status: 400
-        detail: 요청 본문이 계약과 맞지 않습니다.
+        detail: 요청 본문이 명세와 맞지 않습니다.
         code: E09
         violations:
           - source: BODY
@@ -3601,7 +3601,7 @@ components:
         type: 'urn:crs:problem:E09'
         title: 입력값 오류
         status: 400
-        detail: 요청 본문이 계약과 맞지 않습니다.
+        detail: 요청 본문이 명세와 맞지 않습니다.
         code: E09
         violations:
           - source: BODY
@@ -3661,7 +3661,7 @@ components:
         type: 'urn:crs:problem:E09'
         title: 입력값 오류
         status: 400
-        detail: 쿼리 파라미터가 계약과 맞지 않습니다.
+        detail: 쿼리 파라미터가 명세와 맞지 않습니다.
         code: E09
         violations:
           - source: QUERY
@@ -3673,7 +3673,7 @@ components:
         type: 'urn:crs:problem:E09'
         title: 입력값 오류
         status: 400
-        detail: 요청 본문이 계약과 맞지 않습니다.
+        detail: 요청 본문이 명세와 맞지 않습니다.
         code: E09
         violations:
           - source: BODY
@@ -3685,7 +3685,7 @@ components:
         type: 'urn:crs:problem:E09'
         title: 입력값 오류
         status: 400
-        detail: 요청 본문이 계약과 맞지 않습니다.
+        detail: 요청 본문이 명세와 맞지 않습니다.
         code: E09
         violations:
           - source: BODY
@@ -3697,7 +3697,7 @@ components:
         type: 'urn:crs:problem:E09'
         title: 입력값 오류
         status: 400
-        detail: 요청 본문이 계약과 맞지 않습니다.
+        detail: 요청 본문이 명세와 맞지 않습니다.
         code: E09
         violations:
           - source: BODY
@@ -3709,7 +3709,7 @@ components:
         type: 'urn:crs:problem:E09'
         title: 입력값 오류
         status: 400
-        detail: 요청 본문이 계약과 맞지 않습니다.
+        detail: 요청 본문이 명세와 맞지 않습니다.
         code: E09
         violations:
           - source: BODY
@@ -3721,7 +3721,7 @@ components:
         type: 'urn:crs:problem:E09'
         title: 입력값 오류
         status: 400
-        detail: 요청 본문이 계약과 맞지 않습니다.
+        detail: 요청 본문이 명세와 맞지 않습니다.
         code: E09
         violations:
           - source: BODY
@@ -3733,7 +3733,7 @@ components:
         type: 'urn:crs:problem:E09'
         title: 입력값 오류
         status: 400
-        detail: 요청 본문이 계약과 맞지 않습니다.
+        detail: 요청 본문이 명세와 맞지 않습니다.
         code: E09
         violations:
           - source: BODY
