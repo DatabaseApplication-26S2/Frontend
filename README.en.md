@@ -186,7 +186,7 @@ Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
 
 ### Accounts
 
-The real backend (routes 1 and 2) and the mock server (route 3) use different accounts. Mock accounts cannot log in to the real backend, and vice versa.
+The real backend (routes 1 and 2) and the mock server (route 3) use different accounts. Student and professor user IDs are the same in both, but the passwords differ (`Demo-password1!` vs `crs-demo-1234`) and so does the admin ID (`A1001` vs `A0001`). As a result, mock accounts cannot log in to the real backend, and vice versa.
 
 | Role            | Real backend seed (Docker, `pnpm dev`) | Mock server (`pnpm dev:mock` only) |
 | --------------- | -------------------------------------- | ---------------------------------- |
