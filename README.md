@@ -2,7 +2,7 @@
 
 **한국어** | [English](README.en.md)
 
-[DatabaseApplication-26S2/Frontend](https://github.com/DatabaseApplication-26S2/Frontend)의 프론트엔드입니다. [Lapis0875/hackathon-fe-vite](https://github.com/Lapis0875/hackathon-fe-vite)의 커밋 `f258169720150ee45c2ba19957606719fa3f9a68`을 기반으로 초기 설정했습니다. 원본 코드 구조, 의존성 잠금 파일, 참조 문서와 MIT 라이선스를 유지합니다.
+[DatabaseApplication-26S2/Frontend](https://github.com/DatabaseApplication-26S2/Frontend)의 프런트엔드입니다. [Lapis0875/hackathon-fe-vite](https://github.com/Lapis0875/hackathon-fe-vite)의 커밋 `f258169720150ee45c2ba19957606719fa3f9a68`을 기반으로 초기 설정했습니다. 원본 코드 구조, 의존성 잠금 파일, 참조 문서와 MIT 라이선스를 유지합니다.
 
 대기열 기반 수강신청 시스템(CRS)의 웹 프런트엔드입니다. 학생·교수·관리자 세 역할의 화면이 있고, 로그인과 수강신청 요청은 대기열 티켓으로 처리되어 같은 화면에서 순번이 줄어드는 모습을 보여 줍니다.
 
@@ -12,11 +12,11 @@
 
 용도에 맞는 방법 하나를 고릅니다.
 
-| 방법                       | 용도                  | 백엔드                                  | 접속 주소               | 로그인 계정                           |
-| -------------------------- | --------------------- | --------------------------------------- | ----------------------- | ------------------------------------- |
-| 1. 전체 스택(Docker)       | 채점·시연             | Docker로 함께 실행                      | `http://localhost`      | 시드 계정, 비밀번호 `Demo-password1!` |
-| 2. 개발 서버 + 실제 백엔드 | 프런트엔드 개발       | Backend 개발 모드(`localhost:8080`)     | `http://localhost:5173` | 시드 계정, 비밀번호 `Demo-password1!` |
-| 3. 모의 서버만             | 백엔드 없이 화면 확인 | 없음(브라우저 안의 모의 서버 MSW)       | `http://localhost:5173` | 모의 전용 계정, 비밀번호 `crs-demo-1234` |
+| 방법                       | 용도                  | 백엔드                              | 접속 주소               | 로그인 계정                              |
+| -------------------------- | --------------------- | ----------------------------------- | ----------------------- | ---------------------------------------- |
+| 1. 전체 스택(Docker)       | 채점·시연             | Docker로 함께 실행                  | `http://localhost`      | 시드 계정, 비밀번호 `Demo-password1!`    |
+| 2. 개발 서버 + 실제 백엔드 | 프런트엔드 개발       | Backend 개발 모드(`localhost:8080`) | `http://localhost:5173` | 시드 계정, 비밀번호 `Demo-password1!`    |
+| 3. 모의 서버만             | 백엔드 없이 화면 확인 | 없음(브라우저 안의 모의 서버 MSW)   | `http://localhost:5173` | 모의 전용 계정, 비밀번호 `crs-demo-1234` |
 
 두 종류의 계정은 서로 다릅니다. 전체 목록은 [계정](#계정)을 봅니다.
 
@@ -34,7 +34,7 @@ PostgreSQL·Redis·API·웹 서버 컨테이너 네 개를 한 번에 띄웁니�
    git clone https://github.com/DatabaseApplication-26S2/Frontend.git frontend
    ```
 
-3. [Backend README](https://github.com/DatabaseApplication-26S2/Backend)의 "전체 스택 실행" 절에 있는 `compose.yaml` 내용을 같은 폴더(`crs/`)에 `compose.yaml`이라는 이름으로 저장합니다. 폴더 구성은 다음과 같아야 합니다.
+3. [Backend README](https://github.com/DatabaseApplication-26S2/Backend)의 "전체 스택 실행" 절에 있는 `compose.yaml` 내용을 같은 폴더(`crs/`)에 `compose.yaml`이라는 이름으로 저장합니다. 같은 `compose.yaml`은 제출용 ZIP 패키지에도 들어 있으므로 ZIP에서 복사해도 됩니다. 폴더 구성은 다음과 같아야 합니다.
 
    ```text
    crs/
@@ -77,11 +77,11 @@ PostgreSQL·Redis·API·웹 서버 컨테이너 네 개를 한 번에 띄웁니�
 
 6. Chrome에서 `http://localhost`에 접속해 시드 계정으로 로그인합니다. 비밀번호는 모두 `Demo-password1!`입니다.
 
-   | 역할   | 사용자ID                | 로그인 후 첫 화면       |
-   | ------ | ----------------------- | ----------------------- |
-   | 학생   | `20260001`–`20260060`   | 입장 대기 후 `/courses` |
-   | 교수   | `P1001`–`P1003`         | `/professor/courses`    |
-   | 관리자 | `A1001`                 | `/admin/enrollments`    |
+   | 역할   | 사용자ID              | 로그인 후 첫 화면       |
+   | ------ | --------------------- | ----------------------- |
+   | 학생   | `20260001`–`20260060` | 입장 대기 후 `/courses` |
+   | 교수   | `P1001`–`P1003`       | `/professor/courses`    |
+   | 관리자 | `A1001`               | `/admin/enrollments`    |
 
 - 80번 포트를 다른 프로그램이 쓰고 있으면(Windows에서 흔함) `.env`에 `WEB_PORT=8080`과 `APP_FRONTEND_ORIGIN=http://localhost:8080` 두 줄을 추가하고 `docker compose up -d --build --wait`를 다시 실행한 뒤 `http://localhost:8080`에 접속합니다. `APP_FRONTEND_ORIGIN`은 브라우저 주소의 출처와 정확히 같아야 하며, 다르면 로그인이 403(`code` `E02`, `reason` `CSRF_CHECK_FAILED`)으로 실패합니다.
 - 인증 쿠키는 항상 `Secure`입니다. 브라우저는 `http://localhost`에서는 HTTPS 없이도 이 쿠키를 받지만, 다른 PC에서 서버 IP나 도메인으로 접속하려면 HTTPS가 필요합니다([배포 (Docker)](#배포-docker) 참고). 쿠키 동작은 Chrome에서 확인했으므로 Chrome을 권장합니다.
@@ -114,28 +114,28 @@ pnpm dev:mock
 
 ## 포함된 것
 
-| 영역            | 선택                                                                                                     |
-| --------------- | -------------------------------------------------------------------------------------------------------- |
-| 빌드            | Vite 7, React 19, TypeScript(strict), pnpm                                                               |
+| 영역            | 선택                                                                                                      |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| 빌드            | Vite 7, React 19, TypeScript(strict), pnpm                                                                |
 | UI              | Tailwind v4, shadcn/ui 기반 컴포넌트, radix-ui 대화상자, stageshow 모션 부품(`Roll`, `Collapse`)          |
 | 라우팅 / 데이터 | react-router v7(`createBrowserRouter`), TanStack Query v5(자동 재시도 없음)                               |
 | API 클라이언트  | `openapi-typescript` + `openapi-fetch`: `openapi.yaml`에서 타입을 생성하므로 모든 요청/응답에 타입이 붙음 |
-| 폼              | react-hook-form + zod                                                                                    |
+| 폼              | react-hook-form + zod                                                                                     |
 | 모킹 / 테스트   | MSW v2(20개 연산 전부, `pnpm dev:mock`과 테스트가 공유), Vitest 4 + Testing Library                       |
-| 린트 / 포맷     | ESLint, Prettier                                                                                         |
+| 린트 / 포맷     | ESLint, Prettier                                                                                          |
 
 ## 화면
 
-| 경로                   | 역할      | 내용                                                    |
-| ---------------------- | --------- | ------------------------------------------------------- |
-| `/login`               | 익명      | 로그인 → 로그인 대기 순번 → (학생) 입장 대기 순번 → 이동 |
-| `/courses`             | 전 역할   | 과목 검색. 학생은 행에서 신청·취소                       |
-| `/courses/:courseCode` | 전 역할   | 과목 상세, 새로고침                                     |
-| `/me/enrollments`      | 학생      | 내 신청 내역, 취소                                      |
-| `/professor/courses`   | 교수      | 담당 과목 조회·등록·수정·폐강                           |
-| `/admin/enrollments`   | 관리자    | 관리자 수강신청(정원 초과 표시)                         |
-| `/admin/settings`      | 관리자    | 동시 처리 수 N과 슬롯 현황                              |
-| `/admin/closures`      | 관리자    | 폐강 대상 조회와 일괄 폐강                              |
+| 경로                   | 역할    | 내용                                                     |
+| ---------------------- | ------- | -------------------------------------------------------- |
+| `/login`               | 익명    | 로그인 → 로그인 대기 순번 → (학생) 입장 대기 순번 → 이동 |
+| `/courses`             | 전 역할 | 과목 검색. 학생은 행에서 신청·취소                       |
+| `/courses/:courseCode` | 전 역할 | 과목 상세, 새로고침                                      |
+| `/me/enrollments`      | 학생    | 내 신청 내역, 취소                                       |
+| `/professor/courses`   | 교수    | 담당 과목 조회·등록·수정·폐강                            |
+| `/admin/enrollments`   | 관리자  | 관리자 수강신청(정원 초과 표시)                          |
+| `/admin/settings`      | 관리자  | 동시 처리 수 N과 슬롯 현황                               |
+| `/admin/closures`      | 관리자  | 폐강 대상 조회와 일괄 폐강                               |
 
 `/`는 역할 첫 화면(학생 `/courses`, 교수 `/professor/courses`, 관리자 `/admin/enrollments`)으로 보냅니다. 학생 화면은 현재 세션의 `POST /admission`이 200을 준 뒤에만 열립니다.
 
@@ -188,12 +188,12 @@ pnpm dev:mock   # 동일하지만 MSW가 브라우저에서 /api/v1/* 를 응답
 
 실제 백엔드(방법 1·2)와 모의 서버(방법 3)는 계정이 다릅니다. 모의 서버 계정으로는 실제 백엔드에 로그인할 수 없고, 반대도 마찬가지입니다.
 
-| 역할           | 실제 백엔드 시드 (Docker, `pnpm dev`) | 모의 서버 (`pnpm dev:mock` 전용) |
-| -------------- | ------------------------------------- | -------------------------------- |
-| 학생           | `20260001`–`20260060`                 | `20260001`–`20260060`            |
-| 교수           | `P1001`–`P1003`                       | `P1001`–`P1003`                  |
-| 관리자         | `A1001`                               | `A0001`                          |
-| 공통 비밀번호  | `Demo-password1!`                     | `crs-demo-1234`                  |
+| 역할          | 실제 백엔드 시드 (Docker, `pnpm dev`) | 모의 서버 (`pnpm dev:mock` 전용) |
+| ------------- | ------------------------------------- | -------------------------------- |
+| 학생          | `20260001`–`20260060`                 | `20260001`–`20260060`            |
+| 교수          | `P1001`–`P1003`                       | `P1001`–`P1003`                  |
+| 관리자        | `A1001`                               | `A0001`                          |
+| 공통 비밀번호 | `Demo-password1!`                     | `crs-demo-1234`                  |
 
 - 실제 백엔드 시드: Backend의 Flyway 시드(V900)가 `local`·`demo` 프로파일에서 넣습니다. 과목은 `DEMO01`–`DEMO25`(`DEMO01` 정원 3, `DEMO02` 정원 1)이고, 학생 `20260001`은 관리자 `A1001`이 배정한 `DEMO03` 신청 1건을 가진 상태로 시작합니다. 동시 처리 수 N의 초기값은 100입니다.
 - 모의 서버: 계정·과목은 `src/mocks/seed.ts`에만 있는 모의 전용 값이며 실제 서버에는 쓰지 않습니다. 과목 코드도 실제 시드와 다르고(예: `CSE3010`), 시연용 과목 `ERR0099`는 E99(처리 실패)를 재현하는 모의 전용 과목입니다.
@@ -220,9 +220,9 @@ Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-| 변수                | 기본값    | 설명                                                                         |
-| ------------------- | --------- | ---------------------------------------------------------------------------- |
-| `VITE_USE_MOCK`     | `false`   | `true`면 MSW가 `/api/v1/*`를 가로챕니다. `pnpm dev:mock`이 자동 설정          |
+| 변수                | 기본값    | 설명                                                                                 |
+| ------------------- | --------- | ------------------------------------------------------------------------------------ |
+| `VITE_USE_MOCK`     | `false`   | `true`면 MSW가 `/api/v1/*`를 가로챕니다. `pnpm dev:mock`이 자동 설정                 |
 | `VITE_API_BASE_URL` | `/api/v1` | API 기준 경로. 기본은 Vite 프록시 경유, `http://localhost:8080/api/v1`이면 직접 호출 |
 
 ## 배포 (Docker)

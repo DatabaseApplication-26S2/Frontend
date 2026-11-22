@@ -12,11 +12,11 @@ The real backend (API server) is the [DatabaseApplication-26S2/Backend](https://
 
 Pick the one route that fits your purpose.
 
-| Route                         | Purpose                         | Backend                                     | URL                     | Login accounts                            |
-| ----------------------------- | ------------------------------- | ------------------------------------------- | ----------------------- | ----------------------------------------- |
-| 1. Full stack (Docker)        | Grading, demos                  | Runs together in Docker                     | `http://localhost`      | Seed accounts, password `Demo-password1!` |
-| 2. Dev server + real backend  | Frontend development            | Backend dev mode (`localhost:8080`)         | `http://localhost:5173` | Seed accounts, password `Demo-password1!` |
-| 3. Mock server only           | Check the screens without a backend | None (MSW, a mock server inside the browser) | `http://localhost:5173` | Mock-only accounts, password `crs-demo-1234` |
+| Route                        | Purpose                             | Backend                                      | URL                     | Login accounts                               |
+| ---------------------------- | ----------------------------------- | -------------------------------------------- | ----------------------- | -------------------------------------------- |
+| 1. Full stack (Docker)       | Grading, demos                      | Runs together in Docker                      | `http://localhost`      | Seed accounts, password `Demo-password1!`    |
+| 2. Dev server + real backend | Frontend development                | Backend dev mode (`localhost:8080`)          | `http://localhost:5173` | Seed accounts, password `Demo-password1!`    |
+| 3. Mock server only          | Check the screens without a backend | None (MSW, a mock server inside the browser) | `http://localhost:5173` | Mock-only accounts, password `crs-demo-1234` |
 
 The two sets of accounts are different. See [Accounts](#accounts) for the full list.
 
@@ -34,7 +34,7 @@ Starts four containers at once: PostgreSQL, Redis, the API and the web server. T
    git clone https://github.com/DatabaseApplication-26S2/Frontend.git frontend
    ```
 
-3. Save the `compose.yaml` content from the "전체 스택 실행" (full-stack run) section of the [Backend README](https://github.com/DatabaseApplication-26S2/Backend) into the same folder (`crs/`) as a file named `compose.yaml`. The folder must look like this:
+3. Save the `compose.yaml` content from the "전체 스택 실행" (full-stack run) section of the [Backend README](https://github.com/DatabaseApplication-26S2/Backend) into the same folder (`crs/`) as a file named `compose.yaml`. The same `compose.yaml` is also included in the submission ZIP package, so you can copy it from there instead. The folder must look like this:
 
    ```text
    crs/
@@ -77,11 +77,11 @@ Starts four containers at once: PostgreSQL, Redis, the API and the web server. T
 
 6. Open `http://localhost` in Chrome and log in with a seed account. Every seed account uses the password `Demo-password1!`.
 
-   | Role      | User ID                 | First screen after login        |
-   | --------- | ----------------------- | ------------------------------- |
-   | Student   | `20260001`–`20260060`   | `/courses` after the admission queue |
-   | Professor | `P1001`–`P1003`         | `/professor/courses`            |
-   | Admin     | `A1001`                 | `/admin/enrollments`            |
+   | Role      | User ID               | First screen after login             |
+   | --------- | --------------------- | ------------------------------------ |
+   | Student   | `20260001`–`20260060` | `/courses` after the admission queue |
+   | Professor | `P1001`–`P1003`       | `/professor/courses`                 |
+   | Admin     | `A1001`               | `/admin/enrollments`                 |
 
 - If another program already uses port 80 (common on Windows), add the two lines `WEB_PORT=8080` and `APP_FRONTEND_ORIGIN=http://localhost:8080` to `.env`, run `docker compose up -d --build --wait` again, and open `http://localhost:8080`. `APP_FRONTEND_ORIGIN` must equal the origin in the browser's address bar exactly; otherwise login fails with 403 (`code` `E02`, `reason` `CSRF_CHECK_FAILED`).
 - The auth cookies are always `Secure`. Browsers accept them on `http://localhost` without HTTPS, but reaching the app from another PC through a server IP or domain requires HTTPS (see [Deploy (Docker)](#deploy-docker)). Cookie behaviour was checked in Chrome, so Chrome is recommended.
@@ -114,15 +114,15 @@ Open `http://localhost:5173`. The mock accounts differ from the real backend acc
 
 ## What's included
 
-| Area            | Choice                                                                                                     |
-| --------------- | ---------------------------------------------------------------------------------------------------------- |
-| Build           | Vite 7, React 19, TypeScript (strict), pnpm                                                                |
-| UI              | Tailwind v4, shadcn/ui-based components, radix-ui dialogs, stageshow motion parts (`Roll`, `Collapse`)     |
-| Routing / data  | react-router v7 (`createBrowserRouter`), TanStack Query v5 (no automatic retries)                          |
-| API client      | `openapi-typescript` + `openapi-fetch`: types are generated from `openapi.yaml`, so every call is typed    |
-| Forms           | react-hook-form + zod                                                                                      |
-| Mocking / tests | MSW v2 (all 20 operations, shared by `pnpm dev:mock` and tests), Vitest 4 + Testing Library                |
-| Lint / format   | ESLint, Prettier                                                                                           |
+| Area            | Choice                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------- |
+| Build           | Vite 7, React 19, TypeScript (strict), pnpm                                                             |
+| UI              | Tailwind v4, shadcn/ui-based components, radix-ui dialogs, stageshow motion parts (`Roll`, `Collapse`)  |
+| Routing / data  | react-router v7 (`createBrowserRouter`), TanStack Query v5 (no automatic retries)                       |
+| API client      | `openapi-typescript` + `openapi-fetch`: types are generated from `openapi.yaml`, so every call is typed |
+| Forms           | react-hook-form + zod                                                                                   |
+| Mocking / tests | MSW v2 (all 20 operations, shared by `pnpm dev:mock` and tests), Vitest 4 + Testing Library             |
+| Lint / format   | ESLint, Prettier                                                                                        |
 
 ## Screens
 
@@ -188,12 +188,12 @@ Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
 
 The real backend (routes 1 and 2) and the mock server (route 3) use different accounts. Mock accounts cannot log in to the real backend, and vice versa.
 
-| Role             | Real backend seed (Docker, `pnpm dev`) | Mock server (`pnpm dev:mock` only) |
-| ---------------- | -------------------------------------- | ---------------------------------- |
-| Student          | `20260001`–`20260060`                  | `20260001`–`20260060`              |
-| Professor        | `P1001`–`P1003`                        | `P1001`–`P1003`                    |
-| Admin            | `A1001`                                | `A0001`                            |
-| Shared password  | `Demo-password1!`                      | `crs-demo-1234`                    |
+| Role            | Real backend seed (Docker, `pnpm dev`) | Mock server (`pnpm dev:mock` only) |
+| --------------- | -------------------------------------- | ---------------------------------- |
+| Student         | `20260001`–`20260060`                  | `20260001`–`20260060`              |
+| Professor       | `P1001`–`P1003`                        | `P1001`–`P1003`                    |
+| Admin           | `A1001`                                | `A0001`                            |
+| Shared password | `Demo-password1!`                      | `crs-demo-1234`                    |
 
 - Real backend seed: the Backend's Flyway seed (V900) inserts it under the `local` and `demo` profiles. The courses are `DEMO01`–`DEMO25` (`DEMO01` capacity 3, `DEMO02` capacity 1), and student `20260001` starts with one enrollment in `DEMO03` assigned by admin `A1001`. The concurrency limit N starts at 100.
 - Mock server: its accounts and courses are mock-only values that live only in `src/mocks/seed.ts` and are never used against a real server. Its course codes also differ from the real seed (e.g. `CSE3010`), and course `ERR0099` is a mock-only course that reproduces E99 (processing failure).
@@ -220,9 +220,9 @@ Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-| Variable            | Default   | Notes                                                                          |
-| ------------------- | --------- | ------------------------------------------------------------------------------ |
-| `VITE_USE_MOCK`     | `false`   | `true` makes MSW intercept `/api/v1/*`. `pnpm dev:mock` sets it for you         |
+| Variable            | Default   | Notes                                                                                             |
+| ------------------- | --------- | ------------------------------------------------------------------------------------------------- |
+| `VITE_USE_MOCK`     | `false`   | `true` makes MSW intercept `/api/v1/*`. `pnpm dev:mock` sets it for you                           |
 | `VITE_API_BASE_URL` | `/api/v1` | API base path. Default goes through the Vite proxy; `http://localhost:8080/api/v1` calls directly |
 
 ## Deploy (Docker)
