@@ -44,7 +44,11 @@ export function RequestStatus() {
                 <Icon aria-hidden="true" className="mt-2.5 size-4 shrink-0" />
                 <p className="min-w-0 flex-1 py-1.5 text-pretty">
                   {outcome.courseCode ? (
-                    <span className="mr-2 font-bold whitespace-nowrap">{outcome.courseCode}</span>
+                    <>
+                      <span className="mr-1 font-bold whitespace-nowrap">
+                        {outcome.courseCode}
+                      </span>{' '}
+                    </>
                   ) : null}
                   {outcome.message}
                 </p>

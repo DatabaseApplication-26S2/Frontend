@@ -20,7 +20,7 @@ it.each([
   await userEvent.click(row.getByRole('button', { name: '신청' }))
   await waitFor(() => expect(screen.getByTestId('request-active')).not.toBeEmptyDOMElement())
   hold.release()
-  await waitFor(() => expect(screen.getByTestId('request-outcome')).toHaveTextContent(message), { timeout: 10000 })
+  await waitFor(() => expect(screen.getByTestId('request-outcome')).toHaveTextContent(`${code} ${message}`), { timeout: 10000 })
   await waitFor(() => expect(mockDb.calls.searchCourses ?? 0).toBeGreaterThan(calls))
   if (code === SEED.course.open) await waitFor(async () => expect((await courseRow(code)).getByRole('button', { name: '취소' })).toBeEnabled())
   else expect(screen.getByTestId('request-outcome')).toHaveAttribute('role', 'alert')

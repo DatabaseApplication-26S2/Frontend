@@ -71,8 +71,7 @@ function CloseCourseConfirm({ course, onDone }: { course: Course; onDone: () => 
         </AlertDialogDescription>
       </AlertDialogHeader>
       <p className="rounded-lg bg-muted px-3 py-2.5">
-        <span className="mr-2 font-bold">{course.courseCode}</span>
-        {course.name}
+        <span className="mr-1 font-bold">{course.courseCode}</span> {course.name}
       </p>
       {error ? <FieldError className="text-pretty">{error}</FieldError> : null}
       <AlertDialogFooter>
