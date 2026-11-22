@@ -44,7 +44,7 @@ PostgreSQL·Redis·API·웹 서버 컨테이너 네 개를 한 번에 띄웁니�
      frontend/     (이 저장소)
    ```
 
-4. 같은 폴더에서 `.env`를 만듭니다. 필수 값은 두 개입니다. `JWT_SECRET`은 URL-safe Base64로 32바이트 이상이어야 합니다. 일반 Base64의 `+`, `/`가 섞이면 api가 `Illegal base64 character` 오류로 기동하지 못합니다. `POSTGRES_PASSWORD`는 DB 볼륨을 처음 만들 때만 적용됩니다.
+4. 같은 폴더에서 `.env`를 만듭니다. 필수 값은 두 개입니다. `JWT_SECRET`은 URL-safe Base64로 32바이트 이상이어야 합니다. 일반 Base64의 `+`, `/`가 섞이면 api가 `Illegal base64 character` 오류로 기동하지 못합니다. `POSTGRES_PASSWORD`는 DB 볼륨을 처음 만들 때만 적용됩니다. 아래 명령은 `.env` 전체를 덮어씁니다. 스택을 한 번이라도 띄운 뒤에는 다시 실행하지 않습니다. `POSTGRES_PASSWORD`가 바뀌어 api가 DB에 접속하지 못하게 됩니다. 처음부터 다시 하려면 먼저 `docker compose down -v`(DB 데이터 삭제)를 실행합니다.
 
    macOS·Linux:
 
@@ -84,7 +84,7 @@ PostgreSQL·Redis·API·웹 서버 컨테이너 네 개를 한 번에 띄웁니�
    | 관리자 | `A1001`               | `/admin/enrollments`    |
 
 - 80번 포트를 다른 프로그램이 쓰고 있으면(Windows에서 흔함) `.env`에 `WEB_PORT=8080`과 `APP_FRONTEND_ORIGIN=http://localhost:8080` 두 줄을 추가하고 `docker compose up -d --build --wait`를 다시 실행한 뒤 `http://localhost:8080`에 접속합니다. `APP_FRONTEND_ORIGIN`은 브라우저 주소의 출처와 정확히 같아야 하며, 다르면 로그인이 403(`code` `E02`, `reason` `CSRF_CHECK_FAILED`)으로 실패합니다.
-- 기본 `WEB_PORT`로 띄우면 웹 포트가 이 PC의 모든 네트워크 인터페이스에서 열리므로 같은 네트워크의 다른 PC도 접속할 수 있고, curl 같은 도구로 공개된 시드 비밀번호를 써서 로그인할 수도 있습니다. 이 PC에서만 접속하게 하려면 `.env`에 `WEB_PORT=127.0.0.1:80`을 넣습니다. 8080번 포트를 쓴다면 `WEB_PORT=127.0.0.1:8080`과 `APP_FRONTEND_ORIGIN=http://localhost:8080`을 넣습니다.
+- 기본 `WEB_PORT`로 띄우면 웹 포트가 이 PC의 모든 네트워크 인터페이스에서 열리므로 같은 네트워크의 다른 PC도 접속할 수 있고, curl 같은 도구로 공개된 시드 비밀번호를 써서 로그인할 수도 있습니다. 이 PC에서만 접속하게 하려면 `.env`에 `WEB_PORT=127.0.0.1:80`을 넣습니다. 8080번 포트를 쓴다면 `WEB_PORT=127.0.0.1:8080`과 `APP_FRONTEND_ORIGIN=http://localhost:8080`을 넣습니다. 접속 주소는 그대로 `http://localhost`(8080번이면 `http://localhost:8080`)입니다. `http://127.0.0.1`로 열면 Origin이 달라 로그인이 403이 됩니다.
 - 인증 쿠키는 항상 `Secure`입니다. 브라우저는 `http://localhost`에서는 HTTPS 없이도 이 쿠키를 받지만, 다른 PC의 브라우저에서 서버 IP나 도메인으로 접속해 로그인하려면 HTTPS가 필요합니다([배포 (Docker)](#배포-docker) 참고). 쿠키 동작은 Chrome에서 확인했으므로 Chrome을 권장합니다.
 - 중지와 재시작은 `docker compose stop` / `docker compose start`입니다. `docker compose down`은 컨테이너를 지우지만 DB 데이터는 남깁니다. `docker compose down -v`는 DB 데이터까지 지우며, 다음 `docker compose up`에서 시드를 다시 넣습니다.
 

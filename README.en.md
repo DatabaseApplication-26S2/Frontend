@@ -44,7 +44,7 @@ Starts four containers at once: PostgreSQL, Redis, the API and the web server. T
      frontend/     (this repository)
    ```
 
-4. Create `.env` in the same folder. Two values are required. `JWT_SECRET` must be URL-safe Base64 of at least 32 bytes; if it contains standard Base64 `+` or `/`, the api fails to start with `Illegal base64 character`. `POSTGRES_PASSWORD` applies only when the DB volume is first created.
+4. Create `.env` in the same folder. Two values are required. `JWT_SECRET` must be URL-safe Base64 of at least 32 bytes; if it contains standard Base64 `+` or `/`, the api fails to start with `Illegal base64 character`. `POSTGRES_PASSWORD` applies only when the DB volume is first created. The commands below overwrite the whole `.env`. Once the stack has been started, do not run them again: `POSTGRES_PASSWORD` would change and the api could no longer connect to the DB. To start over, first run `docker compose down -v` (deletes the DB data).
 
    macOS and Linux:
 
@@ -84,7 +84,7 @@ Starts four containers at once: PostgreSQL, Redis, the API and the web server. T
    | Admin     | `A1001`               | `/admin/enrollments`                 |
 
 - If another program already uses port 80 (common on Windows), add the two lines `WEB_PORT=8080` and `APP_FRONTEND_ORIGIN=http://localhost:8080` to `.env`, run `docker compose up -d --build --wait` again, and open `http://localhost:8080`. `APP_FRONTEND_ORIGIN` must equal the origin in the browser's address bar exactly; otherwise login fails with 403 (`code` `E02`, `reason` `CSRF_CHECK_FAILED`).
-- With the default `WEB_PORT`, the web port listens on all of this PC's network interfaces, so other PCs on the same network can reach it and could log in with the public seed password using a tool such as curl. To allow access from this PC only, put `WEB_PORT=127.0.0.1:80` in `.env`. With port 8080, put `WEB_PORT=127.0.0.1:8080` and `APP_FRONTEND_ORIGIN=http://localhost:8080`.
+- With the default `WEB_PORT`, the web port listens on all of this PC's network interfaces, so other PCs on the same network can reach it and could log in with the public seed password using a tool such as curl. To allow access from this PC only, put `WEB_PORT=127.0.0.1:80` in `.env`. With port 8080, put `WEB_PORT=127.0.0.1:8080` and `APP_FRONTEND_ORIGIN=http://localhost:8080`. The address to open stays `http://localhost` (`http://localhost:8080` with port 8080); opening `http://127.0.0.1` gives a different Origin, and login fails with 403.
 - The auth cookies are always `Secure`. Browsers accept them on `http://localhost` without HTTPS, but logging in from a browser on another PC through a server IP or domain requires HTTPS (see [Deploy (Docker)](#deploy-docker)). Cookie behavior was checked in Chrome, so Chrome is recommended.
 - Stop and restart with `docker compose stop` / `docker compose start`. `docker compose down` removes the containers but keeps the DB data. `docker compose down -v` also deletes the DB data; the next `docker compose up` seeds it again.
 
